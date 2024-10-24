@@ -17,6 +17,7 @@ r/tests/testthat/*.pdf
 build/
 *.egg-info/
 .vscode
+test
 **/*.Rcheck
 **/*.Rapp*
 .DS_Store
