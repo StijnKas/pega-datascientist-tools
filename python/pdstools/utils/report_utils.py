@@ -88,9 +88,10 @@ def _write_params_files(
     analysis : dict, optional
         Analysis configuration to write to _quarto.yml, by default None
     full_embed : bool, default=False
-        When True, embeds all resources for a fully standalone HTML (larger output).
-        When False, loads Plotly.js from CDN and skips esbuild bundling
-        (smaller output, but requires internet).
+        When True, embeds all resources (JavaScript libraries like Plotly,
+        itables, etc.) for a fully standalone HTML (larger output).
+        When False, loads JavaScript libraries from CDN and skips esbuild
+        bundling (smaller output, but requires internet).
 
     Returns
     -------
@@ -110,9 +111,10 @@ def _write_params_files(
         )
 
     # When not using full_embed, disable embed-resources so Quarto does not
-    # invoke esbuild to bundle JavaScript.  This avoids failures in environments
-    # where esbuild is unavailable (e.g. DJS Docker images that removed it
-    # due to CVE issues).  See GitHub issue #620.
+    # invoke esbuild to bundle JavaScript libraries (Plotly, itables, etc.).
+    # This avoids failures in environments where esbuild is unavailable
+    # (e.g. DJS Docker images that removed it due to CVE issues).
+    # See GitHub issue #620.
     # plotly-connected: false = load Plotly from CDN (smaller file)
     # plotly-connected: true = embed Plotly (larger file)
     embed = full_embed
@@ -166,9 +168,10 @@ def run_quarto(
     verbose : bool, optional
         Whether to print detailed execution logs, by default False
     full_embed : bool, default=False
-        When True, fully embeds all resources into the HTML output (larger file).
-        When False, loads Plotly.js from CDN and skips esbuild bundling,
-        avoiding the need for esbuild (see issue #620).
+        When True, fully embeds all JavaScript libraries (Plotly, itables,
+        etc.) into the HTML output (larger file).
+        When False, loads JavaScript libraries from CDN and skips esbuild
+        bundling, avoiding the need for esbuild (see issue #620).
 
     Returns
     -------
