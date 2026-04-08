@@ -2088,7 +2088,6 @@ wheels = [
 name = "pdstools"
 source = { editable = "." }
 dependencies = [
-    { name = "humanize" },
     { name = "polars" },
     { name = "typing-extensions" },
 ]
@@ -2105,6 +2104,7 @@ all = [
     { name = "duckdb" },
     { name = "great-tables" },
     { name = "httpx" },
+    { name = "humanize" },
     { name = "ipykernel" },
     { name = "ipywidgets" },
     { name = "onnx" },
@@ -2132,6 +2132,7 @@ api = [
 ]
 app = [
     { name = "great-tables" },
+    { name = "humanize" },
     { name = "ipykernel" },
     { name = "papermill" },
     { name = "plotly", extra = ["express"] },
@@ -2199,6 +2200,7 @@ tests = [
     { name = "duckdb" },
     { name = "great-tables" },
     { name = "httpx" },
+    { name = "humanize" },
     { name = "ipykernel" },
     { name = "ipywidgets" },
     { name = "itables" },
@@ -2241,7 +2243,7 @@ requires-dist = [
     { name = "great-tables", marker = "extra == 'healthcheck'", specifier = ">=0.13" },
     { name = "httpx", marker = "extra == 'api'" },
     { name = "httpx", marker = "extra == 'docs'" },
-    { name = "humanize", specifier = ">=4.0.0" },
+    { name = "humanize", marker = "extra == 'app'", specifier = ">=4.0.0" },
     { name = "ipykernel", marker = "extra == 'healthcheck'" },
     { name = "ipywidgets", marker = "extra == 'explanations'" },
     { name = "itables", marker = "extra == 'tests'" },
