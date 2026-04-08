@@ -2,6 +2,8 @@
 
 import pytest
 
+from pdstools.utils.report_utils import check_report_for_errors
+
 
 @pytest.mark.slow
 def test_health_check_file_size_optimization():
@@ -69,6 +71,10 @@ def test_health_check_file_size_optimization():
             except UnicodeDecodeError as e:
                 pytest.fail(f"Could not read generated HTML file: {e}")
 
+            # Check for rendering errors in generated HTML
+            errors = check_report_for_errors(output_path)
+            assert len(errors) == 0, "Report contains errors:\n" + "\n".join(f"  - {e}" for e in errors)
+
     except Exception as e:
         pytest.fail(f"Test setup failed: {e}")
 
@@ -120,10 +126,12 @@ def test_full_embed_integration():
         if len(results) < 2:
             pytest.skip("Not all reports generated successfully")
 
-        # Verify all reports are valid HTML with plots
+        # Verify all reports are valid HTML with plots and no rendering errors
         for label, data in results.items():
             assert "<html" in data["content"], f"{label}: Not valid HTML"
             assert data["content"].count("Plotly.newPlot") > 0, f"{label}: Missing plots"
+            errors = check_report_for_errors(data["path"])
+            assert len(errors) == 0, f"{label} report contains errors:\n" + "\n".join(f"  - {e}" for e in errors)
 
         # CDN should be smallest (no embedded resources)
         assert results["cdn"]["size"] < results["embedded"]["size"], "CDN should be smaller than embedded"

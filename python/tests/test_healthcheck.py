@@ -33,8 +33,10 @@ def test_GenerateHealthCheck(sample: ADMDatamart):
     hc = sample.generate.health_check()
     assert hc == pathlib.Path("./HealthCheck.html").resolve()
     assert pathlib.Path(hc).exists()
+    errors = check_report_for_errors(hc)
     pathlib.Path(hc).unlink()
     assert not pathlib.Path(hc).exists()
+    assert len(errors) == 0, "HealthCheck report contains errors:\n" + "\n".join(f"  - {e}" for e in errors)
 
 
 def test_HealthCheck_NoErrors(sample: ADMDatamart, tmp_path):
@@ -122,8 +124,10 @@ def test_GenerateHealthCheck_ModelDataOnly(
     hc = sample_without_predictor_binning.generate.health_check(name="MyOrg")
     assert hc == pathlib.Path("./HealthCheck_MyOrg.html").resolve()
     assert pathlib.Path(hc).exists()
+    errors = check_report_for_errors(hc)
     pathlib.Path(hc).unlink()
     assert not pathlib.Path(hc).exists()
+    assert len(errors) == 0, "HealthCheck report contains errors:\n" + "\n".join(f"  - {e}" for e in errors)
 
 
 def test_GenerateHealthCheck_PredictionData(
@@ -136,8 +140,10 @@ def test_GenerateHealthCheck_PredictionData(
     )
     assert hc == pathlib.Path("./HealthCheck_WithPredictions.html").resolve()
     assert pathlib.Path(hc).exists()
+    errors = check_report_for_errors(hc)
     pathlib.Path(hc).unlink()
     assert not pathlib.Path(hc).exists()
+    assert len(errors) == 0, "HealthCheck report contains errors:\n" + "\n".join(f"  - {e}" for e in errors)
 
 
 def test_ExportTables_ModelDataOnly(sample_without_predictor_binning: ADMDatamart):
@@ -167,8 +173,10 @@ def test_GenerateModelReport(sample: ADMDatamart):
     ).resolve()
     assert report == expected_path
     assert pathlib.Path(report).exists()
+    errors = check_report_for_errors(report)
     pathlib.Path(report).unlink()
     assert not pathlib.Path(report).exists()
+    assert len(errors) == 0, "Model report contains errors:\n" + "\n".join(f"  - {e}" for e in errors)
 
 
 @pytest.mark.slow
