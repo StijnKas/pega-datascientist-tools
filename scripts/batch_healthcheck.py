@@ -238,7 +238,7 @@ def process_dataset(
             title=f"ADM Health Check - {name}",
             subtitle=f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}",
             output_dir=str(output_dir),
-            size_reduction_method="cdn",
+            full_embed=False,
         )
 
         print(f"  ✓ Report generated: {output_path}")
