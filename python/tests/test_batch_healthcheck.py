@@ -116,7 +116,11 @@ def test_batch_healthcheck_full_embed(hc_layout, tmp_path):
     n_models = df["ModelReport_Models"][0]
     print(f"Model reports generated: {n_models}")
     if n_models > 0:
-        mr_cdn = [f for f in cdn_files if "models" in f.name]
-        mr_full = [f for f in full_files if "models" in f.name]
-        assert len(mr_cdn) >= 1, f"No model report CDN, files: {[f.name for f in output_dir.glob('*.html')]}"
-        assert len(mr_full) >= 1, f"No model report full-embed, files: {[f.name for f in output_dir.glob('*.html')]}"
+        # Multi-model reports are zipped; single model reports are HTML
+        all_outputs = list(output_dir.glob("*models*"))
+        print(f"Model report files: {[f.name for f in all_outputs]}")
+        assert len(all_outputs) >= 2, (
+            f"Expected CDN + full-embed model report outputs, found: {[f.name for f in all_outputs]}"
+        )
+        assert df["ModelReport_CDN_MB"][0] > 0
+        assert df["ModelReport_Embed_MB"][0] > 0
