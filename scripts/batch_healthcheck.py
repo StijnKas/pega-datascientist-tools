@@ -266,11 +266,16 @@ def _generate_quarto_report(
             **kwargs,
         )
 
-        html_path = Path(output_path)
-        size_mb = get_file_size_mb(html_path)
+        output_file = Path(output_path)
+        size_mb = get_file_size_mb(output_file)
         print(f"  ✓ {label} ({mode}): {size_mb:.1f} MB")
 
-        html_errors = check_report_for_errors(html_path)
+        # Skip HTML error checking for zip files (multi-model reports)
+        if output_file.suffix == ".zip":
+            print("  ✓ Output is a zip archive, skipping HTML error check")
+            return size_mb, "Success", None
+
+        html_errors = check_report_for_errors(output_file)
         if html_errors:
             errors_str = "; ".join(html_errors)
             print(f"  ⚠ HTML errors in {label} ({mode}):")
