@@ -117,6 +117,9 @@ jobs:
       - name: Run healthcheck report tests
         run: uv run pytest python/tests/test_healthcheck.py
 
+      - name: Run batch healthcheck integration test
+        run: uv run pytest python/tests/test_batch_healthcheck.py
+
   # ── Step 2a-no-esbuild: Healthcheck without esbuild (DJS simulation) ─
   healthcheck-tests-no-esbuild:
     needs: [prepare-tools]
@@ -159,6 +162,9 @@ jobs:
 
       - name: Run healthcheck tests (CDN mode only)
         run: uv run pytest python/tests/test_healthcheck.py -k "not full_embed"
+
+      - name: Run batch healthcheck integration test (no esbuild)
+        run: uv run pytest python/tests/test_batch_healthcheck.py
 
   # ── Step 2b: Explanations report tests ───────────────────────────────
   explanations-tests:

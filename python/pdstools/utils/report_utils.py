@@ -88,9 +88,9 @@ def _write_params_files(
     analysis : dict, optional
         Analysis configuration to write to _quarto.yml, by default None
     full_embed : bool, default=False
-        When True, embeds all resources for a fully standalone HTML (~110MB).
+        When True, embeds all resources for a fully standalone HTML (larger output).
         When False, loads Plotly.js from CDN and skips esbuild bundling
-        (resulting in smaller files ~8MB, but requires internet).
+        (smaller output, but requires internet).
 
     Returns
     -------
@@ -113,8 +113,8 @@ def _write_params_files(
     # invoke esbuild to bundle JavaScript.  This avoids failures in environments
     # where esbuild is unavailable (e.g. DJS Docker images that removed it
     # due to CVE issues).  See GitHub issue #620.
-    # plotly-connected: false = load Plotly from CDN (smaller file ~8MB)
-    # plotly-connected: true = embed Plotly (larger file ~110MB)
+    # plotly-connected: false = load Plotly from CDN (smaller file)
+    # plotly-connected: true = embed Plotly (larger file)
     embed = full_embed
     html_format: dict = {
         "embed-resources": embed,
@@ -166,7 +166,7 @@ def run_quarto(
     verbose : bool, optional
         Whether to print detailed execution logs, by default False
     full_embed : bool, default=False
-        When True, fully embeds all resources into the HTML output (~110MB).
+        When True, fully embeds all resources into the HTML output (larger file).
         When False, loads Plotly.js from CDN and skips esbuild bundling,
         avoiding the need for esbuild (see issue #620).
 

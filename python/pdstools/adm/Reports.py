@@ -87,7 +87,7 @@ class Reports(LazyNamespace):
             Optional path to the Quarto file to use for the model report.
             If None, defaults to "ModelReport.qmd".
         full_embed : bool, default=False
-            When True, fully embeds all resources into the HTML output (~110MB).
+            When True, fully embeds all resources into the HTML output (larger file).
             When False, loads Javascript libraries from CDN (smaller, requires internet).
 
         Returns
@@ -254,7 +254,7 @@ class Reports(LazyNamespace):
             Optional path to the Quarto file to use for the health check report.
             If None, defaults to "HealthCheck.qmd".
         full_embed : bool, default=False
-            When True, fully embeds all resources into the HTML output (~110MB).
+            When True, fully embeds all resources into the HTML output (larger file).
             When False, loads Javascript libraries from CDN (smaller, requires internet).
 
         Returns
