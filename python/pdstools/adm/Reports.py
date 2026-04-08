@@ -4,7 +4,7 @@ import os
 import shutil
 from os import PathLike
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 from collections.abc import Callable
 
 import polars as pl
@@ -50,8 +50,7 @@ class Reports(LazyNamespace):
         model_file_path: PathLike | None = None,
         predictor_file_path: PathLike | None = None,
         qmd_file: PathLike | None = None,
-        size_reduction_method: Literal["strip", "cdn"]
-        | None = "cdn",  # TODO: temporary default to support DJS use cases
+        full_embed: bool = False,
     ) -> Path:
         """Generates model reports for Naive Bayes ADM models.
 
@@ -87,10 +86,11 @@ class Reports(LazyNamespace):
         qmd_file : Union[str, Path, None], optional
             Optional path to the Quarto file to use for the model report.
             If None, defaults to "ModelReport.qmd".
-        size_reduction_method : Optional[Literal["strip", "cdn"]], default="cdn"
-            When None will fully embed all resources into the HTML output.
-            When "cdn" will pass this on to Quarto and Plotly so Javascript libraries will be loaded from the internet.
-            When "strip" the HTML will be post-processed to remove duplicate Javascript that would otherwise get embedded multiple times.
+        full_embed : bool, default=False
+            When True, fully embeds all JavaScript libraries (Plotly, itables,
+            etc.) into the HTML output (larger file, requires esbuild).
+            When False, loads JavaScript libraries from CDN (smaller, requires
+            internet). See issue #620.
 
         Returns
         -------
@@ -162,7 +162,7 @@ class Reports(LazyNamespace):
                     },
                     temp_dir=temp_dir,
                     verbose=verbose,
-                    size_reduction_method=size_reduction_method,
+                    full_embed=full_embed,
                 )
                 output_path = temp_dir / output_filename
                 if verbose or not output_path.exists():
@@ -218,8 +218,7 @@ class Reports(LazyNamespace):
         predictor_file_path: PathLike | None = None,
         prediction_file_path: PathLike | None = None,
         qmd_file: PathLike | None = None,
-        size_reduction_method: Literal["strip", "cdn"]
-        | None = "cdn",  # TODO: temporary default to support DJS use cases
+        full_embed: bool = False,
     ) -> Path:
         """Generates Health Check report for ADM models, optionally including predictor and prediction sections.
 
@@ -256,10 +255,11 @@ class Reports(LazyNamespace):
         qmd_file : Union[str, Path, None], optional
             Optional path to the Quarto file to use for the health check report.
             If None, defaults to "HealthCheck.qmd".
-        size_reduction_method : Optional[Literal["strip", "cdn"]], default="cdn"
-            When None will fully embed all resources into the HTML output.
-            When "cdn" will pass this on to Quarto and Plotly so Javascript libraries will be loaded from the internet.
-            When "strip" the HTML will be post-processed to remove duplicate Javascript that would otherwise get embedded multiple times.
+        full_embed : bool, default=False
+            When True, fully embeds all JavaScript libraries (Plotly, itables,
+            etc.) into the HTML output (larger file, requires esbuild).
+            When False, loads JavaScript libraries from CDN (smaller, requires
+            internet). See issue #620.
 
         Returns
         -------
@@ -327,7 +327,7 @@ class Reports(LazyNamespace):
                 },
                 temp_dir=temp_dir,
                 verbose=verbose,
-                size_reduction_method=size_reduction_method,
+                full_embed=full_embed,
             )
 
             # TODO why not print paths earlier, before the quarto call?

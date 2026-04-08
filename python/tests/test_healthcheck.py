@@ -33,8 +33,10 @@ def test_GenerateHealthCheck(sample: ADMDatamart):
     hc = sample.generate.health_check()
     assert hc == pathlib.Path("./HealthCheck.html").resolve()
     assert pathlib.Path(hc).exists()
+    errors = check_report_for_errors(hc)
     pathlib.Path(hc).unlink()
     assert not pathlib.Path(hc).exists()
+    assert len(errors) == 0, "HealthCheck report contains errors:\n" + "\n".join(f"  - {e}" for e in errors)
 
 
 def test_HealthCheck_NoErrors(sample: ADMDatamart, tmp_path):
@@ -53,69 +55,34 @@ def test_HealthCheck_NoErrors(sample: ADMDatamart, tmp_path):
 
 
 @pytest.mark.slow
-def test_HealthCheck_size_reduction_methods(sample: ADMDatamart, tmp_path):
-    """Test health check file sizes for all size_reduction_method options."""
+def test_HealthCheck_full_embed(sample: ADMDatamart, tmp_path):
+    """Test health check file sizes for full_embed options."""
     sizes = {}
 
     default = sample.generate.health_check(output_dir=tmp_path, name="default")
     sizes["default"] = default.stat().st_size
 
-    print("Generating no_reduction (None)...")
-    no_reduction = sample.generate.health_check(
+    print("Generating full_embed...")
+    full_embed = sample.generate.health_check(
         output_dir=tmp_path,
-        name="no_reduction",
-        size_reduction_method=None,
+        name="full_embed",
+        full_embed=True,
     )
-    sizes["no_reduction"] = no_reduction.stat().st_size
-
-    print("Generating stripped...")
-    stripped = sample.generate.health_check(
-        output_dir=tmp_path,
-        name="stripped",
-        size_reduction_method="strip",
-    )
-    sizes["stripped"] = stripped.stat().st_size
+    sizes["full_embed"] = full_embed.stat().st_size
 
     print("Generating cdn...")
     cdn = sample.generate.health_check(
         output_dir=tmp_path,
         name="cdn",
-        size_reduction_method="cdn",
+        full_embed=False,
     )
     sizes["cdn"] = cdn.stat().st_size
 
-    # print("\nHealthCheck Size Summary:")
-    # print(f"  no_reduction (baseline): {sizes['no_reduction']:,} bytes ({sizes['no_reduction'] / (1024*1024):.2f} MB)")
-    # print(f"  stripped: {sizes['stripped']:,} bytes ({sizes['stripped'] / (1024*1024):.2f} MB) - {1 - sizes['stripped']/sizes['no_reduction']:.0%} reduction")
-    # print(f"  cdn: {sizes['cdn']:,} bytes ({sizes['cdn'] / (1024*1024):.2f} MB) - {1 - sizes['cdn']/sizes['no_reduction']:.0%} reduction")
-
-    # TODO: temporary default for DJS use cases
     size_diff = abs(sizes["default"] - sizes["cdn"]) / sizes["cdn"]
     assert size_diff <= 0.10, f"Default is cdn, file sizes could be slightly different, got {size_diff:.1%} difference"
 
-    no_reduction_mb = sizes["no_reduction"] / (1024 * 1024)
-    assert 50 <= no_reduction_mb <= 150, f"Embedded size should be large, got {no_reduction_mb:.1f} MB"
-
-    strip_reduction = 1 - (sizes["stripped"] / sizes["no_reduction"])
-    assert strip_reduction >= 0.80, f"Strip should reduce by 80% or more, got {strip_reduction:.0%}"
-
-    # TODO: test not always passing on GH
-
-    # cdn_reduction = 1 - (sizes["cdn"] / sizes["no_reduction"])
-    # assert (
-    #     cdn_reduction >= 0.80
-    # ), f"CDN should reduce by 80% or more, got {cdn_reduction:.0%}"
-
-    # # Strip and CDN should give very similar sizes (within 10% of each other)
-    # strip_cdn_diff = abs(sizes["stripped"] - sizes["cdn"]) / max(
-    #     sizes["stripped"], sizes["cdn"]
-    # )
-    # assert (
-    #     sizes["stripped"] != sizes["cdn"]
-    # ), "Strip and CDN should not produce identical file sizes"
-    # assert (
-    #     strip_cdn_diff <= 0.10
-    # ), f"Strip and CDN should be within 10% of each other, got {strip_cdn_diff:.0%} difference"
+    full_embed_mb = sizes["full_embed"] / (1024 * 1024)
+    assert 50 <= full_embed_mb <= 150, f"Embedded size should be large, got {full_embed_mb:.1f} MB"
 
 
 def test_ExportTables(sample: ADMDatamart):
@@ -157,8 +124,10 @@ def test_GenerateHealthCheck_ModelDataOnly(
     hc = sample_without_predictor_binning.generate.health_check(name="MyOrg")
     assert hc == pathlib.Path("./HealthCheck_MyOrg.html").resolve()
     assert pathlib.Path(hc).exists()
+    errors = check_report_for_errors(hc)
     pathlib.Path(hc).unlink()
     assert not pathlib.Path(hc).exists()
+    assert len(errors) == 0, "HealthCheck report contains errors:\n" + "\n".join(f"  - {e}" for e in errors)
 
 
 def test_GenerateHealthCheck_PredictionData(
@@ -171,8 +140,10 @@ def test_GenerateHealthCheck_PredictionData(
     )
     assert hc == pathlib.Path("./HealthCheck_WithPredictions.html").resolve()
     assert pathlib.Path(hc).exists()
+    errors = check_report_for_errors(hc)
     pathlib.Path(hc).unlink()
     assert not pathlib.Path(hc).exists()
+    assert len(errors) == 0, "HealthCheck report contains errors:\n" + "\n".join(f"  - {e}" for e in errors)
 
 
 def test_ExportTables_ModelDataOnly(sample_without_predictor_binning: ADMDatamart):
@@ -202,13 +173,15 @@ def test_GenerateModelReport(sample: ADMDatamart):
     ).resolve()
     assert report == expected_path
     assert pathlib.Path(report).exists()
+    errors = check_report_for_errors(report)
     pathlib.Path(report).unlink()
     assert not pathlib.Path(report).exists()
+    assert len(errors) == 0, "Model report contains errors:\n" + "\n".join(f"  - {e}" for e in errors)
 
 
 @pytest.mark.slow
-def test_ModelReport_size_reduction_methods(sample: ADMDatamart, tmp_path):
-    """Test model report file sizes for all size_reduction_method options."""
+def test_ModelReport_full_embed(sample: ADMDatamart, tmp_path):
+    """Test model report file sizes for full_embed options."""
     model_id = "bd70a915-697a-5d43-ab2c-53b0557c85a0"
     sizes = {}
 
@@ -219,64 +192,28 @@ def test_ModelReport_size_reduction_methods(sample: ADMDatamart, tmp_path):
     )
     sizes["default"] = default.stat().st_size
 
-    print("Generating no_reduction (None)...")
-    no_reduction = sample.generate.model_reports(
+    print("Generating full_embed...")
+    full_embed = sample.generate.model_reports(
         model_ids=[model_id],
         output_dir=tmp_path,
-        name="no_reduction",
-        size_reduction_method=None,
+        name="full_embed",
+        full_embed=True,
     )
-    sizes["no_reduction"] = no_reduction.stat().st_size
-
-    print("Generating stripped...")
-    stripped = sample.generate.model_reports(
-        model_ids=[model_id],
-        output_dir=tmp_path,
-        name="stripped",
-        size_reduction_method="strip",
-    )
-    sizes["stripped"] = stripped.stat().st_size
+    sizes["full_embed"] = full_embed.stat().st_size
 
     cdn = sample.generate.model_reports(
         model_ids=[model_id],
         output_dir=tmp_path,
         name="cdn",
-        size_reduction_method="cdn",
+        full_embed=False,
     )
     sizes["cdn"] = cdn.stat().st_size
 
-    # print("\nModelReport Size Summary:")
-    # print(f"  no_reduction (baseline): {sizes['no_reduction']:,} bytes ({sizes['no_reduction'] / (1024*1024):.2f} MB)")
-    # print(f"  stripped: {sizes['stripped']:,} bytes ({sizes['stripped'] / (1024*1024):.2f} MB) - {1 - sizes['stripped']/sizes['no_reduction']:.0%} reduction")
-    # print(f"  cdn: {sizes['cdn']:,} bytes ({sizes['cdn'] / (1024*1024):.2f} MB) - {1 - sizes['cdn']/sizes['no_reduction']:.0%} reduction")
-
-    # TODO: temporary default for DJS use cases
     size_diff = abs(sizes["default"] - sizes["cdn"]) / sizes["cdn"]
     assert size_diff <= 0.10, f"Default is cdn and sizes should be very close, got {size_diff:.1%} difference"
 
-    no_reduction_mb = sizes["no_reduction"] / (1024 * 1024)
-    assert 90 <= no_reduction_mb <= 150, f"Embedded size should be large, got {no_reduction_mb:.1f} MB"
-
-    strip_reduction = 1 - (sizes["stripped"] / sizes["no_reduction"])
-    assert strip_reduction >= 0.80, f"Strip should reduce by 80% or more, got {strip_reduction:.0%}"
-
-    # TODO: test not always passing on GH
-
-    # cdn_reduction = 1 - (sizes["cdn"] / sizes["no_reduction"])
-    # assert (
-    #     cdn_reduction >= 0.80
-    # ), f"CDN should reduce by 80% or more, got {cdn_reduction:.0%}"
-
-    # # Strip and CDN should give very similar sizes (within 10% of each other)
-    # strip_cdn_diff = abs(sizes["stripped"] - sizes["cdn"]) / max(
-    #     sizes["stripped"], sizes["cdn"]
-    # )
-    # assert (
-    #     sizes["stripped"] != sizes["cdn"]
-    # ), "Strip and CDN should not produce identical file sizes"
-    # assert (
-    #     strip_cdn_diff <= 0.10
-    # ), f"Strip and CDN should be within 10% of each other, got {strip_cdn_diff:.0%} difference"
+    full_embed_mb = sizes["full_embed"] / (1024 * 1024)
+    assert 90 <= full_embed_mb <= 150, f"Embedded size should be large, got {full_embed_mb:.1f} MB"
 
 
 def test_GenerateHealthCheck_CustomQmdFile(sample: ADMDatamart, tmp_path):

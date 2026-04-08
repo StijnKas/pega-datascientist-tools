@@ -344,40 +344,31 @@ def test_create_metric_gttable_without_column_descriptions():
     assert 'title="' not in html
 
 
-def test_write_params_files_size_reduction_method(tmp_path):
-    """Test _write_params_files sets plotly-connected correctly based on size_reduction_method."""
+def test_write_params_files_full_embed(tmp_path):
+    """Test _write_params_files sets plotly-connected correctly based on full_embed."""
     import yaml
 
-    # Default (None) - embed plotly
+    # full_embed=True - embed plotly
     report_utils._write_params_files(
         tmp_path,
         params={"test": "value"},
-        size_reduction_method=None,
+        full_embed=True,
     )
     with open(tmp_path / "_quarto.yml") as f:
         config = yaml.safe_load(f)
     assert config["format"]["html"]["embed-resources"] is True
     assert config["format"]["html"]["plotly-connected"] is True
 
-    # "strip" - embed plotly
+    # full_embed=False (default) - load plotly from CDN, disable embed-resources to avoid esbuild (#620)
     report_utils._write_params_files(
         tmp_path,
         params={"test": "value"},
-        size_reduction_method="strip",
-    )
-    with open(tmp_path / "_quarto.yml") as f:
-        config = yaml.safe_load(f)
-    assert config["format"]["html"]["plotly-connected"] is True
-
-    # "cdn" - load plotly from CDN
-    report_utils._write_params_files(
-        tmp_path,
-        params={"test": "value"},
-        size_reduction_method="cdn",
+        full_embed=False,
     )
     with open(tmp_path / "_quarto.yml") as f:
         config = yaml.safe_load(f)
     assert config["format"]["html"]["plotly-connected"] is False
+    assert config["format"]["html"]["embed-resources"] is False
 
 
 def test_create_metric_gttable_callable_rag_with_metric_format():
@@ -517,65 +508,6 @@ class TestGenerateZippedReport:
         a_file.write_text("I am a file")
         result = report_utils.generate_zipped_report("output.html", str(a_file))
         assert result is None
-
-
-class TestRemoveDuplicateHtmlScripts:
-    """Tests for remove_duplicate_html_scripts."""
-
-    def _make_large_script(self, content_id: str, size: int = 1_100_000) -> str:
-        """Create a script tag with content larger than the 1MB threshold."""
-        payload = f"/* {content_id} */ " + "x" * size
-        return f"<script>{payload}</script>"
-
-    def test_no_duplicates(self):
-        """No scripts are removed when all are unique."""
-        script_a = self._make_large_script("A")
-        script_b = self._make_large_script("B")
-        html = f"<html>{script_a}{script_b}</html>"
-        result = report_utils.remove_duplicate_html_scripts(html)
-        assert result == html
-
-    def test_duplicate_large_script_removed(self):
-        """Duplicate large scripts are replaced with a comment."""
-        script = self._make_large_script("plotly")
-        html = f"<html>{script}<p>content</p>{script}</html>"
-        result = report_utils.remove_duplicate_html_scripts(html)
-        assert result.count("<script>") == 1
-        assert "<!-- Duplicate script removed -->" in result
-
-    def test_small_scripts_not_deduplicated(self):
-        """Scripts under 1MB are not touched even if duplicated."""
-        small_script = "<script>var x = 1;</script>"
-        html = f"<html>{small_script}{small_script}</html>"
-        result = report_utils.remove_duplicate_html_scripts(html)
-        assert result == html  # unchanged
-
-    def test_three_copies_keeps_first(self):
-        """Three identical large scripts → first kept, two removed."""
-        script = self._make_large_script("lib")
-        html = f"<html>{script}{script}{script}</html>"
-        result = report_utils.remove_duplicate_html_scripts(html)
-        assert result.count("<script>") == 1
-        assert result.count("<!-- Duplicate script removed -->") == 2
-
-    def test_verbose_logging(self, caplog):
-        """Verbose mode logs size reduction info."""
-        import logging
-
-        script = self._make_large_script("plotly")
-        html = f"<html>{script}{script}</html>"
-        with caplog.at_level(logging.INFO, logger="pdstools.utils.report_utils"):
-            report_utils.remove_duplicate_html_scripts(html, verbose=True)
-        assert any("reduction" in r.message.lower() for r in caplog.records)
-
-    def test_empty_html(self):
-        """Empty string returns empty string."""
-        assert report_utils.remove_duplicate_html_scripts("") == ""
-
-    def test_no_scripts(self):
-        """HTML with no script tags is returned unchanged."""
-        html = "<html><body><p>Hello</p></body></html>"
-        assert report_utils.remove_duplicate_html_scripts(html) == html
 
 
 class TestDeserializeQuery:

@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from pdstools.explanations import Explanations
+from pdstools.utils.report_utils import check_report_for_errors
 
 basePath = Path(__file__).parent.parent.parent
 
@@ -67,6 +68,16 @@ def test_GenerateExplanationsReport(explanations: Explanations):
     html_names = {f.stem for f in html_files}
     assert "getting-started" in html_names, f"Expected 'getting-started.html' in output, got: {html_names}"
     assert "overview" in html_names, f"Expected 'overview.html' in output, got: {html_names}"
+
+    # Check all generated HTML files for rendering errors
+    all_errors = {}
+    for html_file in html_files:
+        errors = check_report_for_errors(html_file)
+        if errors:
+            all_errors[html_file.name] = errors
+    assert len(all_errors) == 0, "Report HTML contains errors:\n" + "\n".join(
+        f"  {name}: {', '.join(errs)}" for name, errs in all_errors.items()
+    )
 
 
 def test_GenerateExplanationsReport_Zipped(explanations: Explanations):

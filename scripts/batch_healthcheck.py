@@ -1,10 +1,12 @@
 #!/usr/bin/env python
-"""Batch HealthCheck Report Generator.
+"""Batch ADM Report Generator.
 
-Generate ADM HealthCheck reports for multiple datasets.
+Generate ADM HealthCheck reports, Model Reports, and Excel exports for
+multiple datasets.
 
-This script discovers ADM model and predictor data files, generates HealthCheck
-reports, and creates a summary of results with error detection.
+This script discovers ADM model and predictor data files, generates reports
+in both CDN and full-embed modes, and creates a summary of results with
+error detection.
 
 Usage Examples
 --------------
@@ -19,6 +21,9 @@ Specify output directory:
 
 Process specific datasets by name:
     python batch_healthcheck.py /path/to/data --datasets CustomerA CustomerB
+
+Generate model reports for up to 5 interesting models:
+    python batch_healthcheck.py /path/to/data --max-models 5
 
 Directory Structure
 -------------------
@@ -35,9 +40,14 @@ Required files:
 
 import argparse
 import sys
-from pathlib import Path
+import tempfile
+import traceback
+import zipfile
 from datetime import datetime
+from pathlib import Path
+
 import polars as pl
+
 from pdstools import ADMDatamart
 from pdstools.utils.report_utils import check_report_for_errors
 
@@ -171,11 +181,145 @@ def get_file_size_mb(file_path: Path | None) -> float:
     return 0.0
 
 
+def select_interesting_models(datamart: ADMDatamart, max_n: int = 3) -> list[str]:
+    """Select a diverse set of interesting models for model reports.
+
+    Picks top-performing Naive Bayes models (excluding AGB/Classifier) with
+    sufficient volume, selecting the best performer per Channel/Direction/Issue
+    combination for diversity.
+
+    Parameters
+    ----------
+    datamart : ADMDatamart
+        The loaded datamart
+    max_n : int
+        Maximum number of models to select
+
+    Returns
+    -------
+    list[str]
+        List of ModelID strings
+    """
+    group_keys = [c for c in ["Channel", "Direction", "Issue"] if c in datamart.combined_data.collect_schema().names()]
+
+    if datamart.predictor_data is None:
+        print("  ℹ No predictor data — skipping model selection")
+        return []
+
+    # Exclude AGB models: only keep models that have real predictor bins
+    nb_model_ids = (
+        datamart.predictor_data.filter((pl.col("BinType") != "NONE") & (pl.col("EntryType") != "Classifier"))
+        .select(pl.col("ModelID").unique())
+        .collect()["ModelID"]
+        .to_list()
+    )
+
+    if not nb_model_ids:
+        print("  ℹ No Naive Bayes models found")
+        return []
+
+    mdls = (
+        datamart.combined_data.filter(pl.col("ModelID").is_in(nb_model_ids))
+        .filter((pl.col("Positives") >= 200) & (pl.col("ResponseCount") >= 1000))
+        .group_by(group_keys)
+        .agg(
+            pl.col("ModelID").top_k_by("Performance", k=1).first(),
+            pl.col("Performance").max(),
+        )
+        .sort(group_keys)
+        .collect()
+    )
+
+    selected = mdls["ModelID"].head(max_n).to_list()
+    print(f"  ✓ Selected {len(selected)} interesting model(s) for reports")
+    return selected
+
+
+def _check_output_for_errors(output_file: Path) -> list[str]:
+    """Check report output for HTML rendering errors.
+
+    Handles both plain HTML files and zip archives (multi-model reports).
+    For zips, extracts HTML files to a temp directory and checks each one.
+    """
+    if output_file.suffix == ".zip":
+        all_errors = []
+        with tempfile.TemporaryDirectory() as tmp:
+            with zipfile.ZipFile(output_file) as zf:
+                zf.extractall(tmp)
+            for html_file in Path(tmp).glob("*.html"):
+                errors = check_report_for_errors(html_file)
+                if errors:
+                    all_errors.extend(f"{html_file.name}: {e}" for e in errors)
+        return all_errors
+
+    return check_report_for_errors(output_file)
+
+
+def _generate_quarto_report(
+    generate_fn,
+    label: str,
+    output_dir: Path,
+    *,
+    full_embed: bool,
+    **kwargs,
+) -> tuple[float, str, str | None]:
+    """Generate a Quarto report and return (size_mb, status, errors).
+
+    Parameters
+    ----------
+    generate_fn : callable
+        Bound method like datamart.generate.health_check or .model_reports
+    label : str
+        Human-readable label for logging (e.g. "HealthCheck CDN")
+    output_dir : Path
+        Output directory
+    full_embed : bool
+        Whether to embed all resources
+    **kwargs
+        Additional keyword arguments passed to generate_fn
+    """
+    mode = "full-embed" if full_embed else "CDN"
+    print(f"  → Generating {label} ({mode})...")
+
+    try:
+        output_path = generate_fn(
+            output_dir=str(output_dir),
+            full_embed=full_embed,
+            **kwargs,
+        )
+
+        output_file = Path(output_path)
+        size_mb = get_file_size_mb(output_file)
+        print(f"  ✓ {label} ({mode}): {size_mb:.1f} MB")
+
+        # Check HTML files for rendering errors
+        html_errors = _check_output_for_errors(output_file)
+        if html_errors:
+            errors_str = "; ".join(html_errors)
+            print(f"  ⚠ HTML errors in {label} ({mode}):")
+            for error in html_errors:
+                print(f"    - {error}")
+            return size_mb, "Success (with errors)", errors_str
+
+        print(f"  ✓ No errors in {label} ({mode})")
+        return size_mb, "Success", None
+
+    except Exception as e:
+        print(f"  ✗ Error in {label} ({mode}): {e}")
+        traceback.print_exc()
+        return 0.0, "Error", str(e)
+
+
 def process_dataset(
     dataset: dict,
     output_dir: Path,
+    *,
+    max_models: int = 3,
 ) -> dict:
-    """Process a single dataset and generate HealthCheck report.
+    """Process a single dataset and generate all reports.
+
+    Generates HealthCheck reports (CDN + full-embed), Model Reports for
+    selected interesting models, and an Excel export.
 
     Parameters
     ----------
@@ -183,6 +327,8 @@ def process_dataset(
         Dataset information (name, data_dir, model_file, predictor_file)
     output_dir : Path
         Directory for output reports
+    max_models : int
+        Maximum number of model reports to generate
 
     Returns
     -------
@@ -199,16 +345,24 @@ def process_dataset(
         "Dataset": name,
         "Model_File_MB": 0.0,
         "Predictor_File_MB": 0.0,
-        "HTML_File_MB": 0.0,
-        "Status": "Not Found",
-        "Error": None,
-        "HTML_Errors": None,
+        "HC_CDN_MB": 0.0,
+        "HC_CDN_Status": "Not Found",
+        "HC_CDN_Errors": None,
+        "HC_Embed_MB": 0.0,
+        "HC_Embed_Status": "Not Found",
+        "HC_Embed_Errors": None,
+        "ModelReport_Models": 0,
+        "ModelReport_CDN_MB": 0.0,
+        "ModelReport_CDN_Status": "Skipped",
+        "ModelReport_Embed_MB": 0.0,
+        "ModelReport_Embed_Status": "Skipped",
+        "Excel_MB": 0.0,
+        "Excel_Status": "Skipped",
     }
 
     model_file = dataset["model_file"]
     predictor_file = dataset["predictor_file"]
 
-    # Get input file sizes
     result["Model_File_MB"] = get_file_size_mb(model_file)
     result["Predictor_File_MB"] = get_file_size_mb(predictor_file)
 
@@ -219,54 +373,94 @@ def process_dataset(
         print("  ℹ No predictor file found")
 
     try:
-        # Create ADMDatamart
         print("  → Loading datamart...")
         datamart = ADMDatamart.from_ds_export(
             model_filename=str(model_file),
             predictor_filename=str(predictor_file) if predictor_file else None,
         )
+        n_models = len(datamart.model_data.collect())
+        print(f"  ✓ Datamart loaded: {n_models} models")
 
-        print(f"  ✓ Datamart loaded: {len(datamart.model_data.collect())} models")
-
-        # Create output directory if it doesn't exist
         output_dir.mkdir(parents=True, exist_ok=True)
+        safe_name = name.lower().replace(" ", "_").replace(".", "_")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-        # Generate HealthCheck report
-        print("  → Generating HealthCheck report...")
-        output_path = datamart.generate.health_check(
-            name=name.lower().replace(" ", "_").replace(".", "_"),
-            title=f"ADM Health Check - {name}",
-            subtitle=f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-            output_dir=str(output_dir),
-            size_reduction_method="cdn",
-        )
+        # ── HealthCheck reports (CDN + full-embed) ──────────────────
+        for full_embed, key_prefix in [(False, "HC_CDN"), (True, "HC_Embed")]:
+            suffix = "_full" if full_embed else "_cdn"
+            mb, status, errors = _generate_quarto_report(
+                datamart.generate.health_check,
+                "HealthCheck",
+                output_dir,
+                full_embed=full_embed,
+                name=safe_name + suffix,
+                title=f"ADM Health Check - {name}",
+                subtitle=f"Generated on {timestamp}",
+            )
+            result[f"{key_prefix}_MB"] = mb
+            result[f"{key_prefix}_Status"] = status
+            result[f"{key_prefix}_Errors"] = errors
 
-        print(f"  ✓ Report generated: {output_path}")
+        if result["HC_CDN_MB"] > 0 and result["HC_Embed_MB"] > 0:
+            ratio = result["HC_Embed_MB"] / result["HC_CDN_MB"]
+            print(
+                f"  ℹ HC size: CDN {result['HC_CDN_MB']:.1f} MB vs embed {result['HC_Embed_MB']:.1f} MB ({ratio:.1f}x)"
+            )
 
-        # Get output file size
-        html_path = Path(output_path)
-        result["HTML_File_MB"] = get_file_size_mb(html_path)
-        print(f"  ✓ Report size: {result['HTML_File_MB']:.1f} MB")
+        # ── Model reports for interesting models ────────────────────
+        selected_models = select_interesting_models(datamart, max_n=max_models)
+        result["ModelReport_Models"] = len(selected_models)
 
-        # Scan HTML for errors
-        print("  → Scanning HTML for errors...")
-        html_errors = check_report_for_errors(html_path)
-        if html_errors:
-            result["HTML_Errors"] = "; ".join(html_errors)
-            result["Status"] = "Success (with errors)"
-            print("  ⚠ HTML contains errors:")
-            for error in html_errors:
-                print(f"    - {error}")
-        else:
-            result["Status"] = "Success"
-            print("  ✓ No errors found in HTML")
+        if selected_models:
+            for full_embed, key_prefix in [(False, "ModelReport_CDN"), (True, "ModelReport_Embed")]:
+                suffix = "_full" if full_embed else "_cdn"
+                mb, status, errors = _generate_quarto_report(
+                    datamart.generate.model_reports,
+                    f"ModelReport ({len(selected_models)} models)",
+                    output_dir,
+                    full_embed=full_embed,
+                    model_ids=selected_models,
+                    name=f"{safe_name}_models{suffix}",
+                    title=f"Model Reports - {name}",
+                    subtitle=f"Generated on {timestamp}",
+                )
+                result[f"{key_prefix}_MB"] = mb
+                result[f"{key_prefix}_Status"] = status
+
+            if result["ModelReport_CDN_MB"] > 0 and result["ModelReport_Embed_MB"] > 0:
+                ratio = result["ModelReport_Embed_MB"] / result["ModelReport_CDN_MB"]
+                print(
+                    f"  ℹ Model report size: CDN {result['ModelReport_CDN_MB']:.1f} MB"
+                    f" vs embed {result['ModelReport_Embed_MB']:.1f} MB ({ratio:.1f}x)"
+                )
+
+        # ── Excel export ────────────────────────────────────────────
+        print("  → Generating Excel export...")
+        try:
+            excel_path = output_dir / f"{safe_name}.xlsx"
+            path, warnings = datamart.generate.excel_report(
+                name=excel_path,
+                predictor_binning=True,
+            )
+            if path:
+                result["Excel_MB"] = get_file_size_mb(Path(path))
+                result["Excel_Status"] = "Success"
+                print(f"  ✓ Excel export: {result['Excel_MB']:.1f} MB")
+                if warnings:
+                    for w in warnings:
+                        print(f"    ⚠ {w}")
+            else:
+                result["Excel_Status"] = "No data"
+                print("  ℹ Excel export: no data available")
+        except Exception as e:
+            result["Excel_Status"] = "Error"
+            print(f"  ✗ Excel export error: {e}")
 
     except Exception as e:
         print(f"  ✗ Error: {e}")
-        result["Status"] = "Error"
-        result["Error"] = str(e)
-        import traceback
-
+        for key in result:
+            if key.endswith("_Status") and result[key] in ("Not Found", "Skipped"):
+                result[key] = "Error"
         traceback.print_exc()
 
     return result
@@ -275,7 +469,7 @@ def process_dataset(
 def main():
     """Main execution function."""
     parser = argparse.ArgumentParser(
-        description="Batch generate ADM HealthCheck reports",
+        description="Batch generate ADM reports (HealthCheck, Model Reports, Excel)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -283,6 +477,7 @@ Examples:
   %(prog)s /path/to/customers --output ./reports
   %(prog)s /path/to/customers --datasets CustomerA CustomerB
   %(prog)s /path/to/single_customer/HC
+  %(prog)s /path/to/data --max-models 5
 
 For more information, see:
   https://github.com/pegasystems/pega-datascientist-tools
@@ -305,6 +500,12 @@ For more information, see:
         "-d",
         nargs="+",
         help="Specific dataset names to process (default: process all found)",
+    )
+    parser.add_argument(
+        "--max-models",
+        type=int,
+        default=3,
+        help="Maximum number of model reports to generate per dataset (default: 3)",
     )
 
     args = parser.parse_args()
@@ -349,7 +550,6 @@ For more information, see:
             print(f"Available: {', '.join(d['name'] for d in all_datasets)}")
             sys.exit(1)
 
-        # Warn about datasets not found
         found_names = {d["name"] for d in datasets_to_process}
         for name in requested - found_names:
             print(f"Warning: Dataset '{name}' not found, skipping")
@@ -363,20 +563,20 @@ For more information, see:
         print(f"  {marker} {ds['name']}")
 
     print(f"\n{'=' * 60}")
-    print("Batch HealthCheck Report Generator")
+    print("Batch ADM Report Generator")
     print(f"{'=' * 60}")
     print(f"Output directory: {args.output.absolute()}")
     print(f"Datasets to process: {len(datasets_to_process)}")
+    print(f"Max model reports per dataset: {args.max_models}")
 
     # Process all datasets
     results = []
     summary_file = args.output / "summary.csv"
     for i, dataset in enumerate(datasets_to_process, 1):
         print(f"\n[{i}/{len(datasets_to_process)}]")
-        result = process_dataset(dataset, args.output)
+        result = process_dataset(dataset, args.output, max_models=args.max_models)
         results.append(result)
 
-        # Update summary CSV after each dataset
         df_incremental = pl.DataFrame(results)
         df_incremental.write_csv(summary_file)
         print(f"  ✓ Summary updated: {summary_file}")
@@ -388,49 +588,52 @@ For more information, see:
 
     df = pl.DataFrame(results)
 
-    # Format the table for display
     summary_table = df.select(
         [
             pl.col("Dataset"),
-            pl.col("Model_File_MB").round(1).alias("Model (MB)"),
-            pl.col("Predictor_File_MB").round(1).alias("Predictor (MB)"),
-            pl.col("HTML_File_MB").round(1).alias("HTML (MB)"),
-            pl.col("Status"),
+            pl.col("Model_File_MB").round(1).alias("Input (MB)"),
+            pl.col("HC_CDN_MB").round(1).alias("HC CDN"),
+            pl.col("HC_Embed_MB").round(1).alias("HC Embed"),
+            pl.col("HC_CDN_Status").alias("HC Status"),
+            pl.col("ModelReport_Models").alias("# Models"),
+            pl.col("ModelReport_CDN_MB").round(1).alias("MR CDN"),
+            pl.col("ModelReport_Embed_MB").round(1).alias("MR Embed"),
+            pl.col("Excel_MB").round(1).alias("Excel"),
+            pl.col("Excel_Status").alias("XLS Status"),
         ]
     )
 
     print(summary_table)
 
-    # Show HTML errors if any
-    errors_df = df.filter(pl.col("HTML_Errors").is_not_null())
-    if len(errors_df) > 0:
-        print(f"\n{'=' * 60}")
-        print("HTML Errors Detected")
-        print(f"{'=' * 60}")
-        for row in errors_df.iter_rows(named=True):
-            print(f"\n{row['Dataset']}:")
-            for error in row["HTML_Errors"].split("; "):
-                print(f"  - {error}")
+    # Show HC HTML errors if any
+    for mode, col in [("HC CDN", "HC_CDN_Errors"), ("HC Embed", "HC_Embed_Errors")]:
+        errors_df = df.filter(pl.col(col).is_not_null())
+        if len(errors_df) > 0:
+            print(f"\n{'=' * 60}")
+            print(f"HTML Errors Detected ({mode})")
+            print(f"{'=' * 60}")
+            for row in errors_df.iter_rows(named=True):
+                print(f"\n{row['Dataset']}:")
+                for error in row[col].split("; "):
+                    print(f"  - {error}")
 
-    # Summary CSV already saved incrementally during processing
     print(f"\n✓ Final summary: {summary_file}")
 
     # Print statistics
-    success_count = (df["Status"] == "Success").sum()
-    success_with_errors_count = (df["Status"] == "Success (with errors)").sum()
-    failed_count = len(df) - success_count - success_with_errors_count
-    total_model_mb = df["Model_File_MB"].sum()
-    total_html_mb = df["HTML_File_MB"].sum()
-
     print(f"\n{'=' * 60}")
     print("Results:")
-    print(f"  ✓ Clean success: {success_count}")
-    print(f"  ⚠ Success with HTML errors: {success_with_errors_count}")
-    print(f"  ✗ Generation failed: {failed_count}")
-    print(f"Total input size: {total_model_mb:.1f} MB")
-    print(f"Total output size: {total_html_mb:.1f} MB")
-    if total_model_mb > 0:
-        print(f"Compression ratio: {(total_html_mb / total_model_mb * 100):.1f}%")
+    for report, prefix in [("HealthCheck", "HC_CDN"), ("HC full-embed", "HC_Embed")]:
+        s = (df[f"{prefix}_Status"] == "Success").sum()
+        e = (df[f"{prefix}_Status"] == "Success (with errors)").sum()
+        f = len(df) - s - e
+        print(f"  {report}: {s} success, {e} with errors, {f} failed")
+    print(f"  Model reports generated: {df['ModelReport_Models'].sum()} total")
+    print(f"  Excel exports: {(df['Excel_Status'] == 'Success').sum()} success")
+    print(f"\nTotal HC CDN:    {df['HC_CDN_MB'].sum():.1f} MB")
+    print(f"Total HC embed:  {df['HC_Embed_MB'].sum():.1f} MB")
+    print(f"Total MR CDN:    {df['ModelReport_CDN_MB'].sum():.1f} MB")
+    print(f"Total MR embed:  {df['ModelReport_Embed_MB'].sum():.1f} MB")
+    print(f"Total Excel:     {df['Excel_MB'].sum():.1f} MB")
     print(f"{'=' * 60}")
 
 
