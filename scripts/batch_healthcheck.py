@@ -40,7 +40,9 @@ Required files:
 
 import argparse
 import sys
+import tempfile
 import traceback
+import zipfile
 from datetime import datetime
 from pathlib import Path
 
@@ -233,6 +235,26 @@ def select_interesting_models(datamart: ADMDatamart, max_n: int = 3) -> list[str
     return selected
 
 
+def _check_output_for_errors(output_file: Path) -> list[str]:
+    """Check report output for HTML rendering errors.
+
+    Handles both plain HTML files and zip archives (multi-model reports).
+    For zips, extracts HTML files to a temp directory and checks each one.
+    """
+    if output_file.suffix == ".zip":
+        all_errors = []
+        with tempfile.TemporaryDirectory() as tmp:
+            with zipfile.ZipFile(output_file) as zf:
+                zf.extractall(tmp)
+            for html_file in Path(tmp).glob("*.html"):
+                errors = check_report_for_errors(html_file)
+                if errors:
+                    all_errors.extend(f"{html_file.name}: {e}" for e in errors)
+        return all_errors
+
+    return check_report_for_errors(output_file)
+
+
 def _generate_quarto_report(
     generate_fn,
     label: str,
@@ -270,12 +292,8 @@ def _generate_quarto_report(
         size_mb = get_file_size_mb(output_file)
         print(f"  ✓ {label} ({mode}): {size_mb:.1f} MB")
 
-        # Skip HTML error checking for zip files (multi-model reports)
-        if output_file.suffix == ".zip":
-            print("  ✓ Output is a zip archive, skipping HTML error check")
-            return size_mb, "Success", None
-
-        html_errors = check_report_for_errors(output_file)
+        # Check HTML files for rendering errors
+        html_errors = _check_output_for_errors(output_file)
         if html_errors:
             errors_str = "; ".join(html_errors)
             print(f"  ⚠ HTML errors in {label} ({mode}):")
