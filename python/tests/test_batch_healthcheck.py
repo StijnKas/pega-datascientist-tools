@@ -34,12 +34,9 @@ def hc_layout(tmp_path):
     return tmp_path
 
 
-@pytest.mark.slow
-def test_batch_healthcheck_produces_html(hc_layout, tmp_path):
-    """Run batch_healthcheck.py and verify it produces both CDN and full-embed reports."""
-    output_dir = tmp_path / "reports"
-
-    result = subprocess.run(
+def _run_batch(hc_layout, output_dir):
+    """Run batch_healthcheck.py and return the subprocess result."""
+    return subprocess.run(
         [
             sys.executable,
             str(SCRIPT),
@@ -52,25 +49,45 @@ def test_batch_healthcheck_produces_html(hc_layout, tmp_path):
         timeout=600,
     )
 
+
+@pytest.mark.slow
+def test_batch_healthcheck_cdn(hc_layout, tmp_path):
+    """Run batch_healthcheck.py and verify the CDN report is produced."""
+    output_dir = tmp_path / "reports"
+    result = _run_batch(hc_layout, output_dir)
+
     assert result.returncode == 0, f"batch_healthcheck.py failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
 
-    # Verify both CDN and full-embed HTML reports were created
-    html_files = list(output_dir.glob("*.html"))
-    assert len(html_files) >= 2, (
-        f"Expected at least 2 HTML files (CDN + full-embed) in {output_dir}, found: {[f.name for f in html_files]}"
-    )
+    # Verify CDN HTML report was created
+    cdn_files = list(output_dir.glob("*_cdn.html"))
+    assert len(cdn_files) >= 1, f"No CDN report found, files: {[f.name for f in output_dir.glob('*.html')]}"
 
-    cdn_files = [f for f in html_files if "_cdn" in f.name]
-    full_files = [f for f in html_files if "_full" in f.name]
-    assert len(cdn_files) >= 1, f"No CDN report found, files: {[f.name for f in html_files]}"
-    assert len(full_files) >= 1, f"No full-embed report found, files: {[f.name for f in html_files]}"
-
-    # Verify files are non-trivial
-    for html_file in html_files:
+    for html_file in cdn_files:
         size_kb = html_file.stat().st_size / 1024
-        assert size_kb > 100, f"HTML file {html_file.name} is suspiciously small: {size_kb:.1f} KB"
+        assert size_kb > 100, f"{html_file.name} is suspiciously small: {size_kb:.1f} KB"
 
-    # Full-embed should be significantly larger than CDN
+    # Verify summary CSV
+    summary = output_dir / "summary.csv"
+    assert summary.exists(), "summary.csv was not created"
+    df = pl.read_csv(summary)
+    assert len(df) == 1
+    assert df["CDN_Status"][0] == "Success"
+    assert df["CDN_HTML_MB"][0] > 0
+
+
+@pytest.mark.slow
+def test_batch_healthcheck_full_embed(hc_layout, tmp_path):
+    """Verify the full-embed report is produced and larger than CDN."""
+    output_dir = tmp_path / "reports"
+    result = _run_batch(hc_layout, output_dir)
+
+    assert result.returncode == 0, f"batch_healthcheck.py failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+
+    cdn_files = list(output_dir.glob("*_cdn.html"))
+    full_files = list(output_dir.glob("*_full.html"))
+    assert len(cdn_files) >= 1, f"No CDN report, files: {[f.name for f in output_dir.glob('*.html')]}"
+    assert len(full_files) >= 1, f"No full-embed report, files: {[f.name for f in output_dir.glob('*.html')]}"
+
     cdn_size = cdn_files[0].stat().st_size
     full_size = full_files[0].stat().st_size
     print(f"CDN report:        {cdn_size / (1024 * 1024):.1f} MB")
@@ -78,12 +95,7 @@ def test_batch_healthcheck_produces_html(hc_layout, tmp_path):
     print(f"Ratio:             {full_size / cdn_size:.1f}x")
     assert full_size > cdn_size, "Full-embed report should be larger than CDN report"
 
-    # Verify summary CSV was created with both mode columns
-    summary = output_dir / "summary.csv"
-    assert summary.exists(), "summary.csv was not created"
-    df = pl.read_csv(summary)
-    assert len(df) == 1
-    assert df["CDN_Status"][0] == "Success"
+    # Verify summary CSV has both modes
+    df = pl.read_csv(output_dir / "summary.csv")
     assert df["FullEmbed_Status"][0] == "Success"
-    assert df["CDN_HTML_MB"][0] > 0
     assert df["FullEmbed_HTML_MB"][0] > 0
