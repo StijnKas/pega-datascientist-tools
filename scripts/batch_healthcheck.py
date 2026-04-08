@@ -171,11 +171,60 @@ def get_file_size_mb(file_path: Path | None) -> float:
     return 0.0
 
 
+def _generate_report(
+    datamart: ADMDatamart,
+    name: str,
+    output_dir: Path,
+    *,
+    full_embed: bool,
+) -> tuple[float, str | None, str | None]:
+    """Generate a single HealthCheck report and return (size_mb, status, errors)."""
+    label = "full-embed" if full_embed else "CDN"
+    suffix = "_full" if full_embed else "_cdn"
+    print(f"  → Generating report ({label})...")
+
+    try:
+        output_path = datamart.generate.health_check(
+            name=name.lower().replace(" ", "_").replace(".", "_") + suffix,
+            title=f"ADM Health Check - {name}",
+            subtitle=f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            output_dir=str(output_dir),
+            full_embed=full_embed,
+        )
+
+        html_path = Path(output_path)
+        size_mb = get_file_size_mb(html_path)
+        print(f"  ✓ Report ({label}): {size_mb:.1f} MB")
+
+        # Scan HTML for errors
+        html_errors = check_report_for_errors(html_path)
+        if html_errors:
+            errors_str = "; ".join(html_errors)
+            print(f"  ⚠ HTML errors ({label}):")
+            for error in html_errors:
+                print(f"    - {error}")
+            return size_mb, "Success (with errors)", errors_str
+
+        print(f"  ✓ No errors in HTML ({label})")
+        return size_mb, "Success", None
+
+    except Exception as e:
+        print(f"  ✗ Error ({label}): {e}")
+        import traceback
+
+        traceback.print_exc()
+        return 0.0, "Error", str(e)
+
+
 def process_dataset(
     dataset: dict,
     output_dir: Path,
 ) -> dict:
-    """Process a single dataset and generate HealthCheck report.
+    """Process a single dataset and generate HealthCheck reports.
+
+    Generates two reports per dataset: one with CDN mode (smaller, no esbuild
+    needed) and one with full embed (larger, standalone). Both sizes are
+    reported for comparison.
 
     Parameters
     ----------
@@ -199,10 +248,12 @@ def process_dataset(
         "Dataset": name,
         "Model_File_MB": 0.0,
         "Predictor_File_MB": 0.0,
-        "HTML_File_MB": 0.0,
-        "Status": "Not Found",
-        "Error": None,
-        "HTML_Errors": None,
+        "CDN_HTML_MB": 0.0,
+        "CDN_Status": "Not Found",
+        "CDN_Errors": None,
+        "FullEmbed_HTML_MB": 0.0,
+        "FullEmbed_Status": "Not Found",
+        "FullEmbed_Errors": None,
     }
 
     model_file = dataset["model_file"]
@@ -231,40 +282,38 @@ def process_dataset(
         # Create output directory if it doesn't exist
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Generate HealthCheck report
-        print("  → Generating HealthCheck report...")
-        output_path = datamart.generate.health_check(
-            name=name.lower().replace(" ", "_").replace(".", "_"),
-            title=f"ADM Health Check - {name}",
-            subtitle=f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-            output_dir=str(output_dir),
+        # Generate both CDN and full-embed variants
+        cdn_mb, cdn_status, cdn_errors = _generate_report(
+            datamart,
+            name,
+            output_dir,
             full_embed=False,
         )
+        result["CDN_HTML_MB"] = cdn_mb
+        result["CDN_Status"] = cdn_status
+        result["CDN_Errors"] = cdn_errors
 
-        print(f"  ✓ Report generated: {output_path}")
+        embed_mb, embed_status, embed_errors = _generate_report(
+            datamart,
+            name,
+            output_dir,
+            full_embed=True,
+        )
+        result["FullEmbed_HTML_MB"] = embed_mb
+        result["FullEmbed_Status"] = embed_status
+        result["FullEmbed_Errors"] = embed_errors
 
-        # Get output file size
-        html_path = Path(output_path)
-        result["HTML_File_MB"] = get_file_size_mb(html_path)
-        print(f"  ✓ Report size: {result['HTML_File_MB']:.1f} MB")
-
-        # Scan HTML for errors
-        print("  → Scanning HTML for errors...")
-        html_errors = check_report_for_errors(html_path)
-        if html_errors:
-            result["HTML_Errors"] = "; ".join(html_errors)
-            result["Status"] = "Success (with errors)"
-            print("  ⚠ HTML contains errors:")
-            for error in html_errors:
-                print(f"    - {error}")
-        else:
-            result["Status"] = "Success"
-            print("  ✓ No errors found in HTML")
+        # Print size comparison
+        if cdn_mb > 0 and embed_mb > 0:
+            ratio = embed_mb / cdn_mb
+            print(f"  ℹ Size comparison: CDN {cdn_mb:.1f} MB vs full-embed {embed_mb:.1f} MB ({ratio:.1f}x)")
 
     except Exception as e:
         print(f"  ✗ Error: {e}")
-        result["Status"] = "Error"
-        result["Error"] = str(e)
+        result["CDN_Status"] = "Error"
+        result["CDN_Errors"] = str(e)
+        result["FullEmbed_Status"] = "Error"
+        result["FullEmbed_Errors"] = str(e)
         import traceback
 
         traceback.print_exc()
@@ -393,44 +442,48 @@ For more information, see:
         [
             pl.col("Dataset"),
             pl.col("Model_File_MB").round(1).alias("Model (MB)"),
-            pl.col("Predictor_File_MB").round(1).alias("Predictor (MB)"),
-            pl.col("HTML_File_MB").round(1).alias("HTML (MB)"),
-            pl.col("Status"),
+            pl.col("Predictor_File_MB").round(1).alias("Pred (MB)"),
+            pl.col("CDN_HTML_MB").round(1).alias("CDN (MB)"),
+            pl.col("CDN_Status").alias("CDN Status"),
+            pl.col("FullEmbed_HTML_MB").round(1).alias("Embed (MB)"),
+            pl.col("FullEmbed_Status").alias("Embed Status"),
         ]
     )
 
     print(summary_table)
 
     # Show HTML errors if any
-    errors_df = df.filter(pl.col("HTML_Errors").is_not_null())
-    if len(errors_df) > 0:
-        print(f"\n{'=' * 60}")
-        print("HTML Errors Detected")
-        print(f"{'=' * 60}")
-        for row in errors_df.iter_rows(named=True):
-            print(f"\n{row['Dataset']}:")
-            for error in row["HTML_Errors"].split("; "):
-                print(f"  - {error}")
+    for mode, col in [("CDN", "CDN_Errors"), ("Full-embed", "FullEmbed_Errors")]:
+        errors_df = df.filter(pl.col(col).is_not_null())
+        if len(errors_df) > 0:
+            print(f"\n{'=' * 60}")
+            print(f"HTML Errors Detected ({mode})")
+            print(f"{'=' * 60}")
+            for row in errors_df.iter_rows(named=True):
+                print(f"\n{row['Dataset']}:")
+                for error in row[col].split("; "):
+                    print(f"  - {error}")
 
     # Summary CSV already saved incrementally during processing
     print(f"\n✓ Final summary: {summary_file}")
 
     # Print statistics
-    success_count = (df["Status"] == "Success").sum()
-    success_with_errors_count = (df["Status"] == "Success (with errors)").sum()
-    failed_count = len(df) - success_count - success_with_errors_count
-    total_model_mb = df["Model_File_MB"].sum()
-    total_html_mb = df["HTML_File_MB"].sum()
+    cdn_success = (df["CDN_Status"] == "Success").sum()
+    cdn_errors = (df["CDN_Status"] == "Success (with errors)").sum()
+    cdn_failed = len(df) - cdn_success - cdn_errors
+    embed_success = (df["FullEmbed_Status"] == "Success").sum()
+    embed_errors = (df["FullEmbed_Status"] == "Success (with errors)").sum()
+    embed_failed = len(df) - embed_success - embed_errors
 
     print(f"\n{'=' * 60}")
     print("Results:")
-    print(f"  ✓ Clean success: {success_count}")
-    print(f"  ⚠ Success with HTML errors: {success_with_errors_count}")
-    print(f"  ✗ Generation failed: {failed_count}")
-    print(f"Total input size: {total_model_mb:.1f} MB")
-    print(f"Total output size: {total_html_mb:.1f} MB")
-    if total_model_mb > 0:
-        print(f"Compression ratio: {(total_html_mb / total_model_mb * 100):.1f}%")
+    print(f"  CDN mode:        {cdn_success} success, {cdn_errors} with errors, {cdn_failed} failed")
+    print(f"  Full-embed mode: {embed_success} success, {embed_errors} with errors, {embed_failed} failed")
+    print(
+        f"Total input size:  {df['Model_File_MB'].sum():.1f} MB models, {df['Predictor_File_MB'].sum():.1f} MB predictors"
+    )
+    print(f"Total CDN output:  {df['CDN_HTML_MB'].sum():.1f} MB")
+    print(f"Total embed output: {df['FullEmbed_HTML_MB'].sum():.1f} MB")
     print(f"{'=' * 60}")
 
 
