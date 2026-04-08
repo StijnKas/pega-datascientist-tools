@@ -54,6 +54,7 @@ with health_check:
                     keep_temp_files=keep_temp_files,
                     verbose=False,
                     prediction=st.session_state.get("prediction"),
+                    full_embed=True,
                 )
                 if os.path.isfile(outfile):
                     file = open(outfile, "rb")
@@ -184,6 +185,7 @@ if st.session_state["dm"].predictor_data is not None:
                             output_type="html",
                             keep_temp_files=keep_temp_files,
                             progress_callback=update_progress,
+                            full_embed=True,
                         )
                         if os.path.isfile(outfile):
                             file = open(outfile, "rb")

@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import traceback
 from pathlib import Path
-from typing import Literal
+
 
 import polars as pl
 
@@ -73,7 +73,7 @@ def _write_params_files(
     params: dict | None = None,
     project: dict = {"type": "default"},
     analysis: dict | None = None,
-    size_reduction_method: Literal["strip", "cdn"] | None = None,
+    full_embed: bool = False,
 ) -> None:
     """Write parameters to YAML files for Quarto processing.
 
@@ -87,11 +87,10 @@ def _write_params_files(
         Project configuration to write to _quarto.yml, by default {"type": "default"}
     analysis : dict, optional
         Analysis configuration to write to _quarto.yml, by default None
-    size_reduction_method : Optional[Literal["strip", "cdn"]], default=None
-        When "cdn", disables both embed-resources and plotly-connected so
-        Plotly.js loads from CDN and Quarto skips esbuild bundling
-        (resulting in smaller files ~8MB vs ~110MB, but requires internet).
-        When None or "strip", embeds all resources for a fully standalone HTML.
+    full_embed : bool, default=False
+        When True, embeds all resources for a fully standalone HTML (~110MB).
+        When False, loads Plotly.js from CDN and skips esbuild bundling
+        (resulting in smaller files ~8MB, but requires internet).
 
     Returns
     -------
@@ -110,13 +109,13 @@ def _write_params_files(
             f,
         )
 
-    # When using CDN mode, disable embed-resources so Quarto does not invoke
-    # esbuild to bundle JavaScript.  This avoids failures in environments
+    # When not using full_embed, disable embed-resources so Quarto does not
+    # invoke esbuild to bundle JavaScript.  This avoids failures in environments
     # where esbuild is unavailable (e.g. DJS Docker images that removed it
     # due to CVE issues).  See GitHub issue #620.
     # plotly-connected: false = load Plotly from CDN (smaller file ~8MB)
     # plotly-connected: true = embed Plotly (larger file ~110MB)
-    embed = size_reduction_method != "cdn"
+    embed = full_embed
     html_format: dict = {
         "embed-resources": embed,
         "plotly-connected": embed,
@@ -144,7 +143,7 @@ def run_quarto(
     temp_dir: Path = Path(),
     verbose: bool = False,
     *,
-    size_reduction_method: Literal["strip", "cdn"] | None = None,
+    full_embed: bool = False,
 ) -> int:
     """Run the Quarto command to generate the report.
 
@@ -166,11 +165,10 @@ def run_quarto(
         Temporary directory for processing, by default Path(".")
     verbose : bool, optional
         Whether to print detailed execution logs, by default False
-    size_reduction_method : Optional[Literal["strip", "cdn"]], default=None
-        When None will fully embed all resources into the HTML output.
-        When "cdn" disables embed-resources and loads Plotly.js from CDN,
+    full_embed : bool, default=False
+        When True, fully embeds all resources into the HTML output (~110MB).
+        When False, loads Plotly.js from CDN and skips esbuild bundling,
         avoiding the need for esbuild (see issue #620).
-        When "strip" the HTML will be post-processed to remove duplicate Javascript that would otherwise get embedded multiple times.
 
     Returns
     -------
@@ -210,7 +208,7 @@ def run_quarto(
             params=params,
             project=project,
             analysis=analysis,
-            size_reduction_method=size_reduction_method,
+            full_embed=full_embed,
         )
 
     # render file or render project with options
@@ -260,20 +258,6 @@ def run_quarto(
         raise RuntimeError(
             f"Quarto rendering failed with return code {return_code}.\nOutput:\n{captured_output}",
         )
-
-    # Post-process HTML files to deduplicate JavaScript libraries
-    if return_code == 0 and output_type == "html" and size_reduction_method == "strip" and output_filename is not None:
-        try:
-            html_file_path = temp_dir / output_filename
-            if html_file_path.exists():
-                html_content = html_file_path.read_text(encoding="utf-8")
-                deduplicated_content = remove_duplicate_html_scripts(
-                    html_content,
-                    verbose,
-                )
-                html_file_path.write_text(deduplicated_content, encoding="utf-8")
-        except Exception as e:
-            logger.warning(f"HTML post-processing failed: {e}")
 
     return return_code
 
@@ -1196,49 +1180,3 @@ def check_report_for_errors(html_path: str | Path) -> list[str]:
                 errors.append(description)
 
     return errors
-
-
-def remove_duplicate_html_scripts(html_content: str, verbose: bool = False) -> str:
-    """Remove duplicate script tags from HTML to reduce file size.
-
-    Specifically targets large JavaScript libraries (like Plotly.js) that get
-    embedded multiple times in HTML reports, while preserving all unique
-    plot data and initialization scripts.
-    """
-    try:
-        script_pattern = r"(?i)<script[^>]*?>(.*?)</script>"
-        matches = list(re.finditer(script_pattern, html_content, re.DOTALL))
-
-        seen_hashes = set()
-        to_remove = []
-
-        for match in matches:
-            content = match.group(1)
-
-            # Only target large scripts that are likely libraries
-            if len(content) < 1000000:  # 1MB - target the 4.61MB Plotly duplicates
-                continue
-
-            content_hash = hash(content)
-            if content_hash in seen_hashes:
-                to_remove.append(match)
-            else:
-                seen_hashes.add(content_hash)
-
-        # Remove duplicates (reverse order to preserve indices)
-        result = html_content
-        for match in reversed(to_remove):
-            start, end = match.span()
-            result = result[:start] + "<!-- Duplicate script removed -->\n" + result[end:]
-
-        if verbose and to_remove:
-            size_reduction = 1 - len(result) / len(html_content)
-            logger.info(
-                f"Removed {len(to_remove)} duplicate scripts ({size_reduction:.1%} reduction)",
-            )
-
-        return result
-
-    except Exception as e:
-        logger.warning(f"Script deduplication failed: {e}")
-        return html_content

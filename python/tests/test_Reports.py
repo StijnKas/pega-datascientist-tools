@@ -73,60 +73,11 @@ def test_health_check_file_size_optimization():
         pytest.fail(f"Test setup failed: {e}")
 
 
-def test_html_deduplication():
-    """Test HTML script deduplication functionality."""
-    from pdstools.utils.report_utils import remove_duplicate_html_scripts
-
-    # Test with duplicate large scripts (1MB+ to trigger deduplication)
-    script1 = "var lib1 = function(){ console.log('lib1'); " + "x" * 1000000 + "};"
-    script2 = "var lib2 = function(){ console.log('lib2'); " + "y" * 1000000 + "};"
-
-    html_with_dupes = f"""<html><body>
-    <script>{script1}</script>
-    <script>{script1}</script>
-    <script>{script2}</script>
-    <div>Content</div></body></html>"""
-
-    result = remove_duplicate_html_scripts(html_with_dupes)
-
-    assert result.count("<script>") == 2
-    assert "Duplicate script removed" in result
-    assert "Content" in result
-
-    # Edge cases
-    assert remove_duplicate_html_scripts("") == ""
-    assert remove_duplicate_html_scripts("<html><script>broken") == "<html><script>broken"
-
-
-def test_remove_duplicate_html_scripts_size_threshold():
-    """Test that only large scripts (>1MB) are deduplicated, small ones are preserved."""
-    from pdstools.utils.report_utils import remove_duplicate_html_scripts
-
-    large_script = "var largeLib = function(){ " + "x" * 1500000 + "};"  # 1.5MB
-    small_script = "var small = 'hello';"
-
-    # Mixed: small scripts + large duplicates
-    html = f"""<html><body>
-    <script>{small_script}</script>
-    <script>{large_script}</script>
-    <script>{large_script}</script>
-    <script>{small_script}</script>
-    </body></html>"""
-
-    result = remove_duplicate_html_scripts(html)
-
-    # Should remove 1 large duplicate, keep all small scripts
-    assert result.count("<script>") == 3
-    assert result.count("Duplicate script removed") == 1
-    assert small_script in result
-
-
 @pytest.mark.slow
-def test_size_reduction_method_integration():
-    """Test that the size_reduction_method options work correctly in report generation."""
+def test_full_embed_integration():
+    """Test that the full_embed option works correctly in report generation."""
     import tempfile
     from pathlib import Path
-    from typing import Literal
 
     from pdstools import datasets
     from pdstools.adm.Reports import Reports
@@ -148,41 +99,31 @@ def test_size_reduction_method_integration():
         temp_path = Path(temp_dir)
         results = {}
 
-        methods: list[Literal["strip", "cdn"] | None] = [None, "strip", "cdn"]
-        for method in methods:
-            method_name = method or "embedded"
+        for full_embed in [False, True]:
+            label = "embedded" if full_embed else "cdn"
             try:
                 output = reports.health_check(
-                    name=f"test_{method_name}",
+                    name=f"test_{label}",
                     output_dir=temp_path,
                     verbose=False,
-                    size_reduction_method=method,
+                    full_embed=full_embed,
                 )
                 if output and isinstance(output, Path) and output.exists():
-                    results[method_name] = {
+                    results[label] = {
                         "path": output,
                         "size": output.stat().st_size / (1024 * 1024),
                         "content": output.read_text(encoding="utf-8"),
                     }
             except Exception as e:
-                pytest.skip(f"Report generation failed for {method_name}: {e}")
+                pytest.skip(f"Report generation failed for {label}: {e}")
 
-        if len(results) < 3:
+        if len(results) < 2:
             pytest.skip("Not all reports generated successfully")
 
         # Verify all reports are valid HTML with plots
-        for method_name, data in results.items():
-            assert "<html" in data["content"], f"{method_name}: Not valid HTML"
-            assert data["content"].count("Plotly.newPlot") > 0, f"{method_name}: Missing plots"
+        for label, data in results.items():
+            assert "<html" in data["content"], f"{label}: Not valid HTML"
+            assert data["content"].count("Plotly.newPlot") > 0, f"{label}: Missing plots"
 
         # CDN should be smallest (no embedded resources)
         assert results["cdn"]["size"] < results["embedded"]["size"], "CDN should be smaller than embedded"
-
-        # Strip should also be smaller than embedded
-        assert results["strip"]["size"] < results["embedded"]["size"], "Strip should be smaller than embedded"
-
-        # Strip should have deduplication markers
-        assert "Duplicate script removed" in results["strip"]["content"], "Strip should have deduplication markers"
-
-        # Embedded should NOT have deduplication markers
-        assert "Duplicate script removed" not in results["embedded"]["content"], "Embedded should not have markers"
