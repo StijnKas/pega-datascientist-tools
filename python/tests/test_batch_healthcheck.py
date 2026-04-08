@@ -1,8 +1,7 @@
-"""Integration test for the batch_healthcheck script (scripts/batch_healthcheck.py).
+"""Integration test for the batch report generator (scripts/batch_healthcheck.py).
 
 Runs the actual script as a subprocess with sample data, verifying it
-produces valid HTML healthcheck reports via Quarto rendering in both
-CDN and full-embed modes.
+produces valid HTML healthcheck reports, model reports, and Excel exports.
 """
 
 import subprocess
@@ -34,16 +33,19 @@ def hc_layout(tmp_path):
     return tmp_path
 
 
-def _run_batch(hc_layout, output_dir):
+def _run_batch(hc_layout, output_dir, extra_args=None):
     """Run batch_healthcheck.py and return the subprocess result."""
+    cmd = [
+        sys.executable,
+        str(SCRIPT),
+        str(hc_layout),
+        "--output",
+        str(output_dir),
+    ]
+    if extra_args:
+        cmd.extend(extra_args)
     return subprocess.run(
-        [
-            sys.executable,
-            str(SCRIPT),
-            str(hc_layout),
-            "--output",
-            str(output_dir),
-        ],
+        cmd,
         capture_output=True,
         text=True,
         timeout=600,
@@ -52,7 +54,7 @@ def _run_batch(hc_layout, output_dir):
 
 @pytest.mark.slow
 def test_batch_healthcheck_cdn(hc_layout, tmp_path):
-    """Run batch_healthcheck.py and verify the CDN report is produced."""
+    """Verify the CDN healthcheck report is produced."""
     output_dir = tmp_path / "reports"
     result = _run_batch(hc_layout, output_dir)
 
@@ -71,13 +73,19 @@ def test_batch_healthcheck_cdn(hc_layout, tmp_path):
     assert summary.exists(), "summary.csv was not created"
     df = pl.read_csv(summary)
     assert len(df) == 1
-    assert df["CDN_Status"][0] == "Success"
-    assert df["CDN_HTML_MB"][0] > 0
+    assert df["HC_CDN_Status"][0] == "Success"
+    assert df["HC_CDN_MB"][0] > 0
+
+    # Verify Excel export was created
+    xlsx_files = list(output_dir.glob("*.xlsx"))
+    assert len(xlsx_files) >= 1, f"No Excel export found in {output_dir}"
+    assert df["Excel_Status"][0] == "Success"
+    assert df["Excel_MB"][0] > 0
 
 
 @pytest.mark.slow
 def test_batch_healthcheck_full_embed(hc_layout, tmp_path):
-    """Verify the full-embed report is produced and larger than CDN."""
+    """Verify both CDN and full-embed reports are produced and compare sizes."""
     output_dir = tmp_path / "reports"
     result = _run_batch(hc_layout, output_dir)
 
@@ -88,14 +96,25 @@ def test_batch_healthcheck_full_embed(hc_layout, tmp_path):
     assert len(cdn_files) >= 1, f"No CDN report, files: {[f.name for f in output_dir.glob('*.html')]}"
     assert len(full_files) >= 1, f"No full-embed report, files: {[f.name for f in output_dir.glob('*.html')]}"
 
-    cdn_size = cdn_files[0].stat().st_size
-    full_size = full_files[0].stat().st_size
-    print(f"CDN report:        {cdn_size / (1024 * 1024):.1f} MB")
-    print(f"Full-embed report: {full_size / (1024 * 1024):.1f} MB")
-    print(f"Ratio:             {full_size / cdn_size:.1f}x")
-    assert full_size > cdn_size, "Full-embed report should be larger than CDN report"
+    # HealthCheck: full-embed should be larger than CDN
+    hc_cdn = [f for f in cdn_files if "models" not in f.name]
+    hc_full = [f for f in full_files if "models" not in f.name]
+    if hc_cdn and hc_full:
+        cdn_size = hc_cdn[0].stat().st_size
+        full_size = hc_full[0].stat().st_size
+        print(f"HC CDN:        {cdn_size / (1024 * 1024):.1f} MB")
+        print(f"HC full-embed: {full_size / (1024 * 1024):.1f} MB")
+        print(f"Ratio:         {full_size / cdn_size:.1f}x")
+        assert full_size > cdn_size, "Full-embed HC should be larger than CDN"
 
-    # Verify summary CSV has both modes
+    # Verify summary has both HC modes
     df = pl.read_csv(output_dir / "summary.csv")
-    assert df["FullEmbed_Status"][0] == "Success"
-    assert df["FullEmbed_HTML_MB"][0] > 0
+    assert df["HC_Embed_Status"][0] == "Success"
+    assert df["HC_Embed_MB"][0] > 0
+
+    # Verify model reports were generated
+    assert df["ModelReport_Models"][0] > 0, "Should have selected at least 1 model"
+    mr_cdn = [f for f in cdn_files if "models" in f.name]
+    mr_full = [f for f in full_files if "models" in f.name]
+    assert len(mr_cdn) >= 1, f"No model report CDN, files: {[f.name for f in output_dir.glob('*.html')]}"
+    assert len(mr_full) >= 1, f"No model report full-embed, files: {[f.name for f in output_dir.glob('*.html')]}"
