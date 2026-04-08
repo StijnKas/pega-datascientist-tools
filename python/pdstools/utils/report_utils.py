@@ -117,7 +117,7 @@ def _write_params_files(
     # plotly-connected: true = embed Plotly (larger file ~110MB)
     embed = full_embed
     html_format: dict = {
-        "embed-resources": True,  # intentionally broken: always embed to trigger esbuild
+        "embed-resources": embed,
         "plotly-connected": embed,
     }
 
