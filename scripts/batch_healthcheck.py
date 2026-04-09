@@ -207,7 +207,7 @@ def select_interesting_models(datamart: ADMDatamart, max_n: int = 3) -> list[str
         return []
 
     # Exclude AGB models: only keep models that have real predictor bins
-    nb_model_ids = (
+    nb_model_ids = set(
         datamart.predictor_data.filter((pl.col("BinType") != "NONE") & (pl.col("EntryType") != "Classifier"))
         .select(pl.col("ModelID").unique())
         .collect()["ModelID"]
@@ -216,6 +216,19 @@ def select_interesting_models(datamart: ADMDatamart, max_n: int = 3) -> list[str
 
     if not nb_model_ids:
         print("  ℹ No Naive Bayes models found")
+        return []
+
+    # Also require Classifier data (needed for score distribution in reports)
+    classifier_model_ids = set(
+        datamart.predictor_data.filter(pl.col("EntryType") == "Classifier")
+        .select(pl.col("ModelID").unique())
+        .collect()["ModelID"]
+        .to_list()
+    )
+    nb_model_ids = list(nb_model_ids & classifier_model_ids)
+
+    if not nb_model_ids:
+        print("  ℹ No models with both predictor bins and Classifier data found")
         return []
 
     mdls = (
