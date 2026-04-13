@@ -183,27 +183,7 @@ def add_metric_limit_lines(
     metric_id: str = "ModelPerformance",
     scale: float = 100.0,
 ) -> Figure:
-    """Add dashed vertical lines at metric limit thresholds.
-
-    Draws subtle dashed vertical lines at the threshold values defined
-    in MetricLimits for the given metric. Hard limits (minimum/maximum)
-    are shown in red, best practice limits in orange/amber.
-
-    Parameters
-    ----------
-    fig : Figure
-        The Plotly figure to annotate.
-    metric_id : str, optional
-        The metric ID to look up in MetricLimits, by default "ModelPerformance".
-    scale : float, optional
-        Scale factor applied to the limit values, by default 100.0
-        (converts from 0-1 to 0-100 scale used in bubble charts).
-
-    Returns
-    -------
-    Figure
-        The updated Plotly figure.
-    """
+    """Add dashed vertical lines at MetricLimits thresholds (red=hard, orange=best practice)."""
     limits = MetricLimits.get_limit_for_metric(metric_id)
     if not limits:
         return fig
