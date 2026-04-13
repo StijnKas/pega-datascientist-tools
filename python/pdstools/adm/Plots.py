@@ -137,7 +137,7 @@ def fig_update_facet(
     n_rows = max(math.ceil(len(fig.layout.annotations) / n_cols), 1)
     height = base_height + (n_rows * step_height)
     return fig.for_each_annotation(
-        lambda a: a.update(text=a.text.split("=")[1]),
+        lambda a: a.update(text=a.text.split("=")[1]) if "=" in a.text else a,
     ).update_layout(autosize=True, height=height)
 
 
