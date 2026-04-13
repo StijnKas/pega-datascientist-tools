@@ -90,12 +90,12 @@ def test_add_metric_limit_lines_standalone():
     x_values = sorted(s.x0 for s in shapes)
     assert x_values == pytest.approx([52.0, 55.0, 80.0, 90.0])
 
-    # Hard limits (52, 90) should use red, best practice (55, 80) should use orange
+    # Hard limits (52, 90) should use red, best practice (55, 80) should use green
     for shape in shapes:
         if shape.x0 == pytest.approx(52.0) or shape.x0 == pytest.approx(90.0):
-            assert "255, 69, 0" in shape.line.color  # orangered rgba
+            assert "255, 69, 0" in shape.line.color  # red rgba
         else:
-            assert "255, 165, 0" in shape.line.color  # orange rgba
+            assert "0, 128, 0" in shape.line.color  # green rgba
 
 
 def test_over_time(sample2: ADMDatamart):

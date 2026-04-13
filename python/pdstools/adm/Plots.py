@@ -190,8 +190,8 @@ def add_metric_limit_lines(
 
     line_specs = [
         ("minimum", "rgba(255, 69, 0, 0.5)", "Min"),
-        ("best_practice_min", "rgba(255, 165, 0, 0.5)", "Best"),
-        ("best_practice_max", "rgba(255, 165, 0, 0.5)", "Best"),
+        ("best_practice_min", "rgba(0, 128, 0, 0.5)", "Good"),
+        ("best_practice_max", "rgba(0, 128, 0, 0.5)", "Good"),
         ("maximum", "rgba(255, 69, 0, 0.5)", "Max"),
     ]
 
