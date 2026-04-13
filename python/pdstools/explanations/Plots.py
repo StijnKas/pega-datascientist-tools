@@ -38,7 +38,7 @@ class Plots(LazyNamespace):
         descending: bool = defaults.descending,
         missing: bool = defaults.missing,
         remaining: bool = defaults.remaining,
-        single_bin_numeric: bool = defaults.include_numeric_single_bin,
+        include_numeric_single_bin: bool = defaults.include_numeric_single_bin,
         sort_by: str = defaults.sort_by.value,
         display_by: str = defaults.display_by.value,
     ):
@@ -79,7 +79,7 @@ class Plots(LazyNamespace):
                 descending=descending,
                 missing=missing,
                 remaining=remaining,
-                single_bin_numeric=single_bin_numeric,
+                include_numeric_single_bin=include_numeric_single_bin,
                 sort_by=validated_sort_by.value,
                 display_by=validated_display_by.value,
             )
@@ -100,7 +100,7 @@ class Plots(LazyNamespace):
             descending=descending,
             missing=missing,
             remaining=remaining,
-            single_bin_numeric=single_bin_numeric,
+            include_numeric_single_bin=include_numeric_single_bin,
             sort_by=validated_sort_by.value,
             display_by=validated_display_by.value,
         )
@@ -118,7 +118,7 @@ class Plots(LazyNamespace):
         descending: bool = defaults.descending,
         missing: bool = defaults.missing,
         remaining: bool = defaults.remaining,
-        single_bin_numeric: bool = defaults.include_numeric_single_bin,
+        include_numeric_single_bin: bool = defaults.include_numeric_single_bin,
         sort_by: str = defaults.sort_by.value,
         display_by: str = defaults.display_by.value,
     ) -> tuple[go.Figure, list[go.Figure]]:
@@ -130,7 +130,7 @@ class Plots(LazyNamespace):
             descending=descending,
             missing=missing,
             remaining=remaining,
-            include_numeric_single_bin=single_bin_numeric,
+            include_numeric_single_bin=include_numeric_single_bin,
             sort_by=validated_sort_by.value,
         )
 
@@ -148,7 +148,7 @@ class Plots(LazyNamespace):
             descending=descending,
             missing=missing,
             remaining=remaining,
-            include_numeric_single_bin=single_bin_numeric,
+            include_numeric_single_bin=include_numeric_single_bin,
             sort_by=validated_sort_by.value,
         )
 
@@ -175,7 +175,7 @@ class Plots(LazyNamespace):
         descending: bool = defaults.descending,
         missing: bool = defaults.missing,
         remaining: bool = defaults.remaining,
-        single_bin_numeric: bool = defaults.include_numeric_single_bin,
+        include_numeric_single_bin: bool = defaults.include_numeric_single_bin,
         sort_by: str = defaults.sort_by.value,
         display_by: str = defaults.display_by.value,
     ) -> tuple[go.Figure, go.Figure, list[go.Figure]]:
@@ -188,7 +188,7 @@ class Plots(LazyNamespace):
             descending=descending,
             missing=missing,
             remaining=remaining,
-            include_numeric_single_bin=single_bin_numeric,
+            include_numeric_single_bin=include_numeric_single_bin,
             sort_by=validated_sort_by.value,
         )
 
@@ -215,7 +215,7 @@ class Plots(LazyNamespace):
             descending=descending,
             missing=missing,
             remaining=remaining,
-            include_numeric_single_bin=single_bin_numeric,
+            include_numeric_single_bin=include_numeric_single_bin,
             sort_by=validated_sort_by.value,
         )
 
