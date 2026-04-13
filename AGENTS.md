@@ -311,6 +311,28 @@ between external naming conventions (Pega property names, JSON key
 schemes) at the serialization boundary, not in field names or
 function signatures. See the naming-conventions section above.
 
+### Keep parameter surfaces small
+Every parameter on a public function is an API commitment. Only
+expose what users genuinely need to control. Internal filtering or
+behavior toggles should be handled close to where they act, not
+threaded through every layer of a call chain. If a toggle only
+matters at one point in the pipeline, apply it there — e.g. filter
+in the data-loading step, or accept a pre-filtered frame — rather
+than adding it to every function between the caller and that point.
+**Smell:** the same parameter name appearing in 3+ functions in the
+same call chain.
+
+### Use Python's built-in defaults
+Use keyword arguments with literal defaults
+(`def foo(top_n: int = 20)`) — this is idiomatic Python,
+self-documenting, and immediately visible in IDE tooltips. Avoid
+centralizing defaults in a config dataclass or defaults singleton
+that every function references; that adds indirection without
+benefit for a library. The function signature *is* the
+documentation of its defaults. A frozen-dataclass of defaults is
+an engine/enterprise pattern, not a fit for a lightweight analysis
+package.
+
 ## Feature backlog / TODO files
 
 Major features maintain a living TODO file in `docs/plans/` (e.g.
