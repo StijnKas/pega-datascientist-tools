@@ -98,6 +98,38 @@ def test_add_metric_limit_lines_standalone():
             assert "0, 128, 0" in shape.line.color  # green rgba
 
 
+def test_add_metric_limit_lines_horizontal():
+    """Test the helper function with horizontal orientation."""
+    from pdstools.adm.Plots import add_metric_limit_lines
+
+    fig = px.scatter(x=[1, 2, 3], y=[50, 70, 90])
+    fig = add_metric_limit_lines(fig, orientation="horizontal")
+
+    # Horizontal lines have y0 == y1
+    shapes = [s for s in fig.layout.shapes if s.type == "line" and s.y0 == s.y1]
+    assert len(shapes) == 4
+
+    y_values = sorted(s.y0 for s in shapes)
+    assert y_values == pytest.approx([52.0, 55.0, 80.0, 90.0])
+
+
+def test_over_time_with_metric_limits(sample2: ADMDatamart):
+    """Test over_time with metric limit lines for Performance."""
+    fig = sample2.plot.over_time(metric="Performance", by="ModelID", show_metric_limits=True)
+    assert isinstance(fig, Figure)
+
+    # Should have 4 horizontal lines
+    shapes = [s for s in fig.layout.shapes if s.type == "line" and s.y0 == s.y1]
+    assert len(shapes) == 4
+
+
+def test_over_time_metric_limits_only_for_performance(sample2: ADMDatamart):
+    """Test that metric limits are not shown for non-Performance metrics."""
+    fig = sample2.plot.over_time(metric="ResponseCount", by="ModelID", show_metric_limits=True)
+    shapes = [s for s in fig.layout.shapes if s.type == "line" and s.y0 == s.y1]
+    assert len(shapes) == 0
+
+
 def test_over_time(sample2: ADMDatamart):
     fig = sample2.plot.over_time(metric="Performance", by="ModelID")
     assert fig is not None

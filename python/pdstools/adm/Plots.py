@@ -182,11 +182,15 @@ def add_metric_limit_lines(
     fig: Figure,
     metric_id: str = "ModelPerformance",
     scale: float = 100.0,
+    orientation: str = "vertical",
 ) -> Figure:
-    """Add dashed vertical lines at MetricLimits thresholds (red=hard, orange=best practice)."""
+    """Add dashed lines at MetricLimits thresholds (red=hard, green=best practice)."""
     limits = MetricLimits.get_limit_for_metric(metric_id)
     if not limits:
         return fig
+
+    add_line = fig.add_vline if orientation == "vertical" else fig.add_hline
+    pos_key = "x" if orientation == "vertical" else "y"
 
     line_specs = [
         ("minimum", "rgba(255, 69, 0, 0.5)", "Min"),
@@ -199,14 +203,14 @@ def add_metric_limit_lines(
         value = limits.get(limit_key)
         if value is not None:
             scaled = value * scale
-            fig.add_vline(
-                x=scaled,
+            add_line(
+                **{pos_key: scaled},
                 line_dash="dash",
                 line_width=1,
                 line_color=color,
                 layer="below",
                 annotation_text=f"{label} ({scaled:.0f})",
-                annotation_position="top",
+                annotation_position="top" if orientation == "vertical" else "right",
                 annotation_font_size=9,
                 annotation_font_color=color,
             )
@@ -361,6 +365,7 @@ class Plots(LazyNamespace):
         cumulative: bool = True,
         query: QUERY | None = None,
         facet: str | None = None,
+        show_metric_limits: bool = False,
         return_df: bool = False,
     ):
         """Statistics over time
@@ -380,6 +385,10 @@ class Plots(LazyNamespace):
             The query to apply to the data, by default None
         facet : Optional[str], optional
             Whether to facet the plot into subplots, by default None
+        show_metric_limits : bool, optional
+            Whether to show dashed horizontal lines at the metric limit
+            thresholds (from MetricLimits.csv), by default False.
+            Only applies when metric is "Performance".
         return_df : bool, optional
             Whether to return a dataframe instead of a plot, by default False
 
@@ -489,6 +498,9 @@ class Plots(LazyNamespace):
         if metric == "SuccessRate":
             fig.update_yaxes(tickformat=".2%")
             fig.update_layout(yaxis={"rangemode": "tozero"})
+
+        if show_metric_limits and metric == "Performance":
+            fig = add_metric_limit_lines(fig, orientation="horizontal")
 
         return fig
 
