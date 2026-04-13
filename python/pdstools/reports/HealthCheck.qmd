@@ -234,7 +234,7 @@ try:
         .height
     )
 
-    fig = datamart.plot.bubble_chart(query=active_models_filter_expr, color="Channel")
+    fig = datamart.plot.bubble_chart(query=active_models_filter_expr, color="Channel", show_metric_limits=True)
 
     fig.layout.coloraxis.colorscale = pega_template.success
 
@@ -1137,7 +1137,7 @@ The data contains many ({n_configs}) model configurations. To limit the size of 
             separator="/"
         ).alias("Facet")
 
-    fig = datamart.plot.bubble_chart(facet=facet, query=active_models_filter_expr)
+    fig = datamart.plot.bubble_chart(facet=facet, query=active_models_filter_expr, show_metric_limits=True)
     fig = (
         fig_update_facet(fig)
         .update_layout(

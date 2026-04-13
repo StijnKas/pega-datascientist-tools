@@ -20,6 +20,7 @@ from typing_extensions import ParamSpec
 from typing import Concatenate
 
 from ..utils import cdh_utils
+from ..utils.metric_limits import MetricLimits
 from ..utils.namespaces import LazyNamespace
 from ..utils.plot_utils import get_colorscale
 from ..utils.types import QUERY
@@ -177,6 +178,62 @@ def add_bottom_left_text_to_bubble_plot(
     return fig
 
 
+def add_metric_limit_lines(
+    fig: Figure,
+    metric_id: str = "ModelPerformance",
+    scale: float = 100.0,
+) -> Figure:
+    """Add dashed vertical lines at metric limit thresholds.
+
+    Draws subtle dashed vertical lines at the threshold values defined
+    in MetricLimits for the given metric. Hard limits (minimum/maximum)
+    are shown in red, best practice limits in orange/amber.
+
+    Parameters
+    ----------
+    fig : Figure
+        The Plotly figure to annotate.
+    metric_id : str, optional
+        The metric ID to look up in MetricLimits, by default "ModelPerformance".
+    scale : float, optional
+        Scale factor applied to the limit values, by default 100.0
+        (converts from 0-1 to 0-100 scale used in bubble charts).
+
+    Returns
+    -------
+    Figure
+        The updated Plotly figure.
+    """
+    limits = MetricLimits.get_limit_for_metric(metric_id)
+    if not limits:
+        return fig
+
+    line_specs = [
+        ("minimum", "rgba(255, 69, 0, 0.5)", "Min"),
+        ("best_practice_min", "rgba(255, 165, 0, 0.5)", "Best"),
+        ("best_practice_max", "rgba(255, 165, 0, 0.5)", "Best"),
+        ("maximum", "rgba(255, 69, 0, 0.5)", "Max"),
+    ]
+
+    for limit_key, color, label in line_specs:
+        value = limits.get(limit_key)
+        if value is not None:
+            scaled = value * scale
+            fig.add_vline(
+                x=scaled,
+                line_dash="dash",
+                line_width=1,
+                line_color=color,
+                layer="below",
+                annotation_text=f"{label} ({scaled:.0f})",
+                annotation_position="top",
+                annotation_font_size=9,
+                annotation_font_color=color,
+            )
+
+    return fig
+
+
 def distribution_graph(df: pl.LazyFrame, title: str):
     plot_df = df.collect()
     fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -224,6 +281,7 @@ class Plots(LazyNamespace):
         query: QUERY | None = None,
         facet: str | pl.Expr | None = None,
         color: str | None = "Performance",
+        show_metric_limits: bool = False,
         return_df: bool = False,
     ):
         """The Bubble Chart, as seen in Prediction Studio
@@ -238,6 +296,9 @@ class Plots(LazyNamespace):
             The query to apply to the data, by default None
         facet : Optional[Union[str, pl.Expr]], optional
             Column name or Polars expression to facet the plot into subplots, by default None
+        show_metric_limits : bool, optional
+            Whether to show dashed vertical lines at the ModelPerformance
+            metric limit thresholds (from MetricLimits.csv), by default False
         return_df : bool, optional
             Whether to return a dataframe instead of a plot, by default False
 
@@ -302,6 +363,8 @@ class Plots(LazyNamespace):
             labels={"LastUpdate": "Last Updated"},
         )
         fig = add_bottom_left_text_to_bubble_plot(fig, df, 1)
+        if show_metric_limits:
+            fig = add_metric_limit_lines(fig)
         fig.update_traces(marker=dict(line=dict(color="black")))
         fig.update_yaxes(tickformat=".3%")
         return fig
