@@ -20,6 +20,7 @@ from typing_extensions import ParamSpec
 from typing import Concatenate
 
 from ..utils import cdh_utils
+from ..utils.metric_limits import MetricLimits
 from ..utils.namespaces import LazyNamespace
 from ..utils.plot_utils import get_colorscale
 from ..utils.types import QUERY
@@ -136,7 +137,7 @@ def fig_update_facet(
     n_rows = max(math.ceil(len(fig.layout.annotations) / n_cols), 1)
     height = base_height + (n_rows * step_height)
     return fig.for_each_annotation(
-        lambda a: a.update(text=a.text.split("=")[1]),
+        lambda a: a.update(text=a.text.split("=")[1]) if "=" in a.text else a,
     ).update_layout(autosize=True, height=height)
 
 
@@ -174,6 +175,46 @@ def add_bottom_left_text_to_bubble_plot(
     newtext = f"{num_models} models: {bottomleft} ({round(bottomleft / num_models * 100, 2)}%) at (50,0)"
     fig.layout.title.text += f"<br><sup>{newtext}</sup>"
     fig.data[0].marker.size *= bubble_size
+    return fig
+
+
+def add_metric_limit_lines(
+    fig: Figure,
+    metric_id: str = "ModelPerformance",
+    scale: float = 100.0,
+    orientation: str = "vertical",
+) -> Figure:
+    """Add dashed lines at MetricLimits thresholds (red=hard, green=best practice)."""
+    limits = MetricLimits.get_limit_for_metric(metric_id)
+    if not limits:
+        return fig
+
+    add_line = fig.add_vline if orientation == "vertical" else fig.add_hline
+    pos_key = "x" if orientation == "vertical" else "y"
+
+    line_specs = [
+        ("minimum", "rgba(255, 69, 0, 0.5)", "Min"),
+        ("best_practice_min", "rgba(0, 128, 0, 0.5)", "Good"),
+        ("best_practice_max", "rgba(0, 128, 0, 0.5)", "Good"),
+        ("maximum", "rgba(255, 69, 0, 0.5)", "Max"),
+    ]
+
+    for limit_key, color, label in line_specs:
+        value = limits.get(limit_key)
+        if value is not None:
+            scaled = value * scale
+            add_line(
+                **{pos_key: scaled},
+                line_dash="dash",
+                line_width=1,
+                line_color=color,
+                layer="below",
+                annotation_text=f"{label} ({scaled:.0f})",
+                annotation_position="top" if orientation == "vertical" else "right",
+                annotation_font_size=9,
+                annotation_font_color=color,
+            )
+
     return fig
 
 
@@ -224,6 +265,7 @@ class Plots(LazyNamespace):
         query: QUERY | None = None,
         facet: str | pl.Expr | None = None,
         color: str | None = "Performance",
+        show_metric_limits: bool = False,
         return_df: bool = False,
     ):
         """The Bubble Chart, as seen in Prediction Studio
@@ -238,6 +280,9 @@ class Plots(LazyNamespace):
             The query to apply to the data, by default None
         facet : Optional[Union[str, pl.Expr]], optional
             Column name or Polars expression to facet the plot into subplots, by default None
+        show_metric_limits : bool, optional
+            Whether to show dashed vertical lines at the ModelPerformance
+            metric limit thresholds (from MetricLimits.csv), by default False
         return_df : bool, optional
             Whether to return a dataframe instead of a plot, by default False
 
@@ -302,6 +347,8 @@ class Plots(LazyNamespace):
             labels={"LastUpdate": "Last Updated"},
         )
         fig = add_bottom_left_text_to_bubble_plot(fig, df, 1)
+        if show_metric_limits:
+            fig = add_metric_limit_lines(fig)
         fig.update_traces(marker=dict(line=dict(color="black")))
         fig.update_yaxes(tickformat=".3%")
         return fig
@@ -318,6 +365,7 @@ class Plots(LazyNamespace):
         cumulative: bool = True,
         query: QUERY | None = None,
         facet: str | None = None,
+        show_metric_limits: bool = False,
         return_df: bool = False,
     ):
         """Statistics over time
@@ -337,6 +385,10 @@ class Plots(LazyNamespace):
             The query to apply to the data, by default None
         facet : Optional[str], optional
             Whether to facet the plot into subplots, by default None
+        show_metric_limits : bool, optional
+            Whether to show dashed horizontal lines at the metric limit
+            thresholds (from MetricLimits.csv), by default False.
+            Only applies when metric is "Performance".
         return_df : bool, optional
             Whether to return a dataframe instead of a plot, by default False
 
@@ -446,6 +498,9 @@ class Plots(LazyNamespace):
         if metric == "SuccessRate":
             fig.update_yaxes(tickformat=".2%")
             fig.update_layout(yaxis={"rangemode": "tozero"})
+
+        if show_metric_limits and metric == "Performance":
+            fig = add_metric_limit_lines(fig, orientation="horizontal")
 
         return fig
 

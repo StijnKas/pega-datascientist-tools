@@ -234,7 +234,7 @@ try:
         .height
     )
 
-    fig = datamart.plot.bubble_chart(query=active_models_filter_expr, color="Channel")
+    fig = datamart.plot.bubble_chart(query=active_models_filter_expr, color="Channel", show_metric_limits=True)
 
     fig.layout.coloraxis.colorscale = pega_template.success
 
@@ -769,6 +769,21 @@ fig = px.line(
 )
 fig.update_xaxes(title="")
 fig.update_layout(hovermode="x")
+
+from pdstools.utils.metric_limits import MetricLimits
+for key, color, label in [
+    ("minimum", "rgba(255, 69, 0, 0.5)", "Min"),
+    ("best_practice_min", "rgba(0, 128, 0, 0.5)", "Good"),
+]:
+    value = MetricLimits.get_limit_for_metric("ActionCount").get(key)
+    if value is not None:
+        fig.add_hline(
+            y=value, line_dash="dash", line_width=1, line_color=color,
+            layer="below", annotation_text=f"{label} ({value:.0f})",
+            annotation_position="right", annotation_font_size=9,
+            annotation_font_color=color,
+        )
+
 fig.show()
 ```
 
@@ -1137,7 +1152,7 @@ The data contains many ({n_configs}) model configurations. To limit the size of 
             separator="/"
         ).alias("Facet")
 
-    fig = datamart.plot.bubble_chart(facet=facet, query=active_models_filter_expr)
+    fig = datamart.plot.bubble_chart(facet=facet, query=active_models_filter_expr, show_metric_limits=True)
     fig = (
         fig_update_facet(fig)
         .update_layout(
@@ -1198,7 +1213,7 @@ n_model_techniques = (
 )
 facet_col_wrap = safe_facet_col_wrap(n_model_techniques, max_rows=15)
 try:
-    fig = datamart.plot.over_time(metric="Performance", facet="ModelTechnique", by=by)
+    fig = datamart.plot.over_time(metric="Performance", facet="ModelTechnique", by=by, show_metric_limits=True)
     fig = fig_update_facet(fig, facet_col_wrap, 200, 250)
     fig = (
         fig.update_layout(title="Trend of Model Performance")
