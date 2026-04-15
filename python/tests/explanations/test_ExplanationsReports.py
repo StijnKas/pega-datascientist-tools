@@ -131,3 +131,50 @@ def test_reports_logging(reports, caplog):
     # Should have debug messages from the operations
     debug_messages = [r.message for r in caplog.records if r.levelname == "DEBUG"]
     assert len(debug_messages) > 0, "Expected debug log messages"
+
+
+class TestGenerateFilterKwargs:
+    """Tests for filter_kwargs resolution inside generate()."""
+
+    def test_generate_unknown_kwarg(self, reports):
+        """Unknown filter kwargs should raise TypeError before any IO."""
+        with pytest.raises(TypeError, match="Unexpected filter kwargs"):
+            reports.generate(unknown_param=True)
+
+    def test_generate_resolves_defaults(self, reports):
+        """generate() resolves filter_kwargs and passes enums to _set_params."""
+        with (
+            patch.object(reports, "_validate_report_dir"),
+            patch.object(reports, "_copy_report_resources"),
+            patch.object(reports, "_set_params") as mock_set_params,
+            patch(
+                "pdstools.explanations.Reports.run_quarto",
+                return_value=0,
+            ),
+        ):
+            reports.generate()
+
+            mock_set_params.assert_called_once()
+            call_kwargs = mock_set_params.call_args
+            assert call_kwargs.kwargs["sort_by"] == defaults.sort_by
+            assert call_kwargs.kwargs["display_by"] == defaults.display_by
+
+    def test_generate_resolves_custom_kwargs(self, reports):
+        """generate() passes custom sort_by/display_by through the resolver."""
+        with (
+            patch.object(reports, "_validate_report_dir"),
+            patch.object(reports, "_copy_report_resources"),
+            patch.object(reports, "_set_params") as mock_set_params,
+            patch(
+                "pdstools.explanations.Reports.run_quarto",
+                return_value=0,
+            ),
+        ):
+            reports.generate(
+                sort_by="contribution",
+                display_by="contribution_abs",
+            )
+
+            call_kwargs = mock_set_params.call_args
+            assert call_kwargs.kwargs["sort_by"] == _CONTRIBUTION_TYPE.CONTRIBUTION
+            assert call_kwargs.kwargs["display_by"] == _CONTRIBUTION_TYPE.CONTRIBUTION_ABS
