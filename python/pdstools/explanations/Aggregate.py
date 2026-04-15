@@ -243,11 +243,7 @@ class Aggregate(LazyNamespace):
         # divides by that predictor's own bin frequencies, not the entire partition.
         df = self._calculate_aggregates(
             df,
-            frequency_over=[
-                _COL.PARTITON.value,
-                _COL.PREDICTOR_NAME.value,
-                _COL.PREDICTOR_TYPE.value,
-            ],
+            frequency_over=[_COL.PARTITON.value],
             aggregate_over=[
                 _COL.PARTITON.value,
                 _COL.PREDICTOR_NAME.value,
@@ -571,7 +567,39 @@ class Aggregate(LazyNamespace):
         return df_with_total_frequency.with_columns(
             pl.when(pl.col(_SPECIAL.TOTAL_FREQUENCY.value) == 0)
             .then(0.0)
-            .otherwise((pl.col(_COL.FREQUENCY.value) / pl.col(_SPECIAL.TOTAL_FREQUENCY.value) * 100).round(1))
+            .otherwise((pl.col(_COL.FREQUENCY.value) / pl.col(_SPECIAL.TOTAL_FREQUENCY.value) * 100).round(4))
+            .alias("frequency_pct")
+        )
+
+    def add_context_frequency_pct_to_df(
+        self,
+        df: pl.DataFrame,
+        join_on: list[str],
+    ) -> pl.DataFrame:
+        """Add frequency_pct showing this context's share of the overall model.
+
+        For each row, computes ``frequency_pct = df.frequency / overall_model_frequency * 100``
+        where the overall model frequency is summed over ``join_on`` columns from the
+        overall (non-contextual) dataset.
+
+        Args:
+            df: DataFrame with a ``frequency`` column (context data).
+            join_on: Columns to join on, typically ``[predictor_name, predictor_type]``.
+
+        Returns:
+            df with an added ``frequency_pct`` column (0–100).
+        """
+        overall_freq = (
+            self.get_df_overall()
+            .group_by(join_on)
+            .agg(pl.sum(_COL.FREQUENCY.value).alias("overall_total_frequency"))
+            .collect()
+        )
+        df_joined = df.join(overall_freq, on=join_on, how="left")
+        return df_joined.with_columns(
+            pl.when(pl.col("overall_total_frequency").is_null() | (pl.col("overall_total_frequency") == 0))
+            .then(0.0)
+            .otherwise((pl.col(_COL.FREQUENCY.value) / pl.col("overall_total_frequency") * 100).round(4))
             .alias("frequency_pct")
         )
 
