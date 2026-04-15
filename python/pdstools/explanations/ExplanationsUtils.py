@@ -6,6 +6,8 @@ __all__ = [
     "_TABLE_NAME",
     "ContextInfo",
     "ContextOperations",
+    "_resolve_agg_filter_kwargs",
+    "_resolve_plot_filter_kwargs",
     "defaults",
 ]
 
@@ -123,6 +125,44 @@ class _Defaults:
 
 
 defaults = _Defaults()
+
+
+def _resolve_agg_filter_kwargs(**kwargs) -> dict:
+    """Extract and validate aggregate-layer filter kwargs, filling defaults.
+
+    Valid keys: ``sort_by``, ``descending``, ``missing``, ``remaining``.
+    Any other key raises ``TypeError``.
+    ``sort_by`` is validated against the accepted ``_CONTRIBUTION_TYPE`` values.
+    """
+    sort_by = kwargs.pop("sort_by", defaults.sort_by.value)
+    _CONTRIBUTION_TYPE.validate_and_get_type(sort_by)
+    result = {
+        "sort_by": sort_by,
+        "descending": kwargs.pop("descending", defaults.descending),
+        "missing": kwargs.pop("missing", defaults.missing),
+        "remaining": kwargs.pop("remaining", defaults.remaining),
+    }
+    if kwargs:
+        raise TypeError(f"Unexpected filter kwargs: {set(kwargs)}. Valid keys: sort_by, descending, missing, remaining")
+    return result
+
+
+def _resolve_plot_filter_kwargs(**kwargs) -> dict:
+    """Extract and validate plot-layer filter kwargs, filling defaults.
+
+    Extends aggregate filter kwargs with ``display_by``. Any other key raises
+    ``TypeError``. Both ``sort_by`` and ``display_by`` are validated against the
+    accepted ``_CONTRIBUTION_TYPE`` values.
+
+    ``sort_by`` and ``display_by`` are returned as ``_CONTRIBUTION_TYPE`` enum
+    members so callers can use ``.value`` and ``.alt`` without re-validating.
+    """
+    display_by = kwargs.pop("display_by", defaults.display_by.value)
+    display_by_enum = _CONTRIBUTION_TYPE.validate_and_get_type(display_by)
+    result = _resolve_agg_filter_kwargs(**kwargs)
+    result["sort_by"] = _CONTRIBUTION_TYPE.validate_and_get_type(result["sort_by"])
+    result["display_by"] = display_by_enum
+    return result
 
 
 class ContextInfo(TypedDict):

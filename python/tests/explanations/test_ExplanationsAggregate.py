@@ -287,6 +287,55 @@ class TestAggregatePredictorValueContributions:
             )
 
 
+class TestFilterKwargsValidation:
+    """Test that unknown filter kwargs raise TypeError."""
+
+    def test_get_predictor_contributions_unknown_kwarg(self, aggregate):
+        with pytest.raises(TypeError, match="Unexpected filter kwargs"):
+            aggregate.get_predictor_contributions(unknown_param=True)
+
+    def test_get_predictor_value_contributions_unknown_kwarg(self, aggregate, predictors):
+        with pytest.raises(TypeError, match="Unexpected filter kwargs"):
+            aggregate.get_predictor_value_contributions(predictors=predictors, unknown_param=True)
+
+
+class TestFilterKwargsDefaults:
+    """Test that filter kwargs are optional and defaults are applied correctly."""
+
+    def test_get_predictor_contributions_no_kwargs_uses_defaults(self, aggregate):
+        """Calling with no filter kwargs should apply defaults (sort_by=contribution_abs, descending=True)."""
+        df_no_kwargs = aggregate.get_predictor_contributions()
+        df_explicit = aggregate.get_predictor_contributions(
+            sort_by="contribution_abs", descending=True, missing=True, remaining=True
+        )
+        assert df_no_kwargs.equals(df_explicit)
+
+    def test_get_predictor_contributions_with_kwargs_overrides_default(self, aggregate):
+        """Passing filter kwargs should override the defaults."""
+        df_default = aggregate.get_predictor_contributions()
+        df_no_remaining = aggregate.get_predictor_contributions(remaining=False)
+        # Without remaining row, result should differ from the default
+        assert not df_default.equals(df_no_remaining)
+
+    def test_get_predictor_value_contributions_no_kwargs_uses_defaults(self, aggregate, predictors):
+        """Calling with no filter kwargs should apply defaults."""
+        df_no_kwargs = aggregate.get_predictor_value_contributions(predictors=predictors)
+        df_explicit = aggregate.get_predictor_value_contributions(
+            predictors=predictors,
+            sort_by="contribution_abs",
+            descending=True,
+            missing=True,
+            remaining=True,
+        )
+        assert df_no_kwargs.equals(df_explicit)
+
+    def test_get_predictor_value_contributions_with_kwargs_overrides_default(self, aggregate, predictors):
+        """Passing filter kwargs should override the defaults."""
+        df_default = aggregate.get_predictor_value_contributions(predictors=predictors)
+        df_no_remaining = aggregate.get_predictor_value_contributions(predictors=predictors, remaining=False)
+        assert not df_default.equals(df_no_remaining)
+
+
 class TestAggregateFrequencyPct:
     """Test cases for add_frequency_pct_to_df."""
 

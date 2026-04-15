@@ -336,3 +336,37 @@ def test_contributions_invalid_display_by(plots):
     """Test contributions() validates display_by parameter."""
     with pytest.raises(ValueError, match="Invalid contribution type"):
         plots.contributions(display_by="invalid")
+
+
+def test_contributions_unknown_kwarg(plots):
+    """Test contributions() rejects unknown filter kwargs."""
+    with pytest.raises(TypeError, match="Unexpected filter kwargs"):
+        plots.contributions(unknown_param=True)
+
+
+def test_plot_contributions_for_overall_unknown_kwarg(plots):
+    """Test plot_contributions_for_overall() rejects unknown filter kwargs."""
+    with pytest.raises(TypeError, match="Unexpected filter kwargs"):
+        plots.plot_contributions_for_overall(unknown_param=True)
+
+
+def test_plot_contributions_for_overall_no_kwargs_uses_defaults(plots):
+    """Calling with no filter kwargs should produce the same structure as passing explicit defaults."""
+    _, figs_no_kwargs = plots.plot_contributions_for_overall()
+    _, figs_explicit = plots.plot_contributions_for_overall(
+        sort_by=defaults.sort_by.value,
+        display_by=defaults.display_by.value,
+        descending=defaults.descending,
+        missing=defaults.missing,
+        remaining=defaults.remaining,
+    )
+    # Same number of predictor figures — same set of top predictors selected
+    assert len(figs_no_kwargs) == len(figs_explicit)
+
+
+def test_plot_contributions_for_overall_with_kwargs_overrides_default(plots):
+    """Passing filter kwargs should override the defaults and change the output."""
+    _, figs_default = plots.plot_contributions_for_overall()
+    _, figs_no_remaining = plots.plot_contributions_for_overall(remaining=False)
+    # Without remaining bar the predictor figures should differ
+    assert any(fig_a.to_json() != fig_b.to_json() for fig_a, fig_b in zip(figs_default, figs_no_remaining))
