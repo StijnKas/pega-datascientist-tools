@@ -359,6 +359,7 @@ def test_plot_contributions_for_overall_no_kwargs_uses_defaults(plots):
         descending=defaults.descending,
         missing=defaults.missing,
         remaining=defaults.remaining,
+        include_numeric_single_bin=defaults.include_numeric_single_bin,
     )
     # Same number of predictor figures — same set of top predictors selected
     assert len(figs_no_kwargs) == len(figs_explicit)
@@ -370,3 +371,18 @@ def test_plot_contributions_for_overall_with_kwargs_overrides_default(plots):
     _, figs_no_remaining = plots.plot_contributions_for_overall(remaining=False)
     # Without remaining bar the predictor figures should differ
     assert any(fig_a.to_json() != fig_b.to_json() for fig_a, fig_b in zip(figs_default, figs_no_remaining))
+
+
+def test_plot_contributions_for_overall_include_numeric_single_bin_default(plots):
+    """Default (False) should produce same output as explicit False."""
+    _, figs_default = plots.plot_contributions_for_overall()
+    _, figs_explicit = plots.plot_contributions_for_overall(include_numeric_single_bin=False)
+    assert len(figs_default) == len(figs_explicit)
+
+
+def test_plot_contributions_for_overall_include_numeric_single_bin_true(plots):
+    """Passing include_numeric_single_bin=True should be accepted and may include extra predictors."""
+    _, figs_default = plots.plot_contributions_for_overall()
+    _, figs_with_single = plots.plot_contributions_for_overall(include_numeric_single_bin=True)
+    # With single-bin numerics included, we should get at least as many predictor figures
+    assert len(figs_with_single) >= len(figs_default)

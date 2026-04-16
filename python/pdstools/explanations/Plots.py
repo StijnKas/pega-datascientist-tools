@@ -66,6 +66,8 @@ class Plots(LazyNamespace):
                 - ``missing`` (bool): Include missing-value bins. Default: ``True``.
                 - ``remaining`` (bool): Include an aggregated "remaining" row.
                   Default: ``True``.
+                - ``include_numeric_single_bin`` (bool): Include numeric predictors
+                  that have only a single bin. Default: ``False``.
         Returns:
             tuple[go.Figure, list[go.Figure]]:
                 - left: context header if context is selected, otherwise None

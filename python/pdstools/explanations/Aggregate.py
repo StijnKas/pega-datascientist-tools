@@ -74,6 +74,8 @@ class Aggregate(LazyNamespace):
                 - ``missing`` (bool): Include missing-value bins. Default: ``True``.
                 - ``remaining`` (bool): Include an aggregated "remaining" row for
                   predictors outside the top-n. Default: ``True``.
+                - ``include_numeric_single_bin`` (bool): Include numeric predictors
+                  that have only a single bin. Default: ``False``.
         """
         resolved = _resolve_agg_filter_kwargs(**filter_kwargs)
 
@@ -120,6 +122,8 @@ class Aggregate(LazyNamespace):
                 - ``missing`` (bool): Include missing-value bins. Default: ``True``.
                 - ``remaining`` (bool): Include an aggregated "remaining" row for
                   values outside the top-k. Default: ``True``.
+                - ``include_numeric_single_bin`` (bool): Include numeric predictors
+                  that have only a single bin. Default: ``False``.
         """
         resolved = _resolve_agg_filter_kwargs(**filter_kwargs)
 

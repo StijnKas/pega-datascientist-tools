@@ -307,7 +307,7 @@ class TestFilterKwargsDefaults:
         """Calling with no filter kwargs should apply defaults (sort_by=contribution_abs, descending=True)."""
         df_no_kwargs = aggregate.get_predictor_contributions()
         df_explicit = aggregate.get_predictor_contributions(
-            sort_by="contribution_abs", descending=True, missing=True, remaining=True
+            sort_by="contribution_abs", descending=True, missing=True, remaining=True, include_numeric_single_bin=False
         )
         assert df_no_kwargs.equals(df_explicit)
 
@@ -327,6 +327,7 @@ class TestFilterKwargsDefaults:
             descending=True,
             missing=True,
             remaining=True,
+            include_numeric_single_bin=False,
         )
         assert df_no_kwargs.equals(df_explicit)
 
@@ -335,6 +336,38 @@ class TestFilterKwargsDefaults:
         df_default = aggregate.get_predictor_value_contributions(predictors=predictors)
         df_no_remaining = aggregate.get_predictor_value_contributions(predictors=predictors, remaining=False)
         assert not df_default.equals(df_no_remaining)
+
+    def test_get_predictor_contributions_include_numeric_single_bin_default(self, aggregate):
+        """Default (False) should exclude single-bin numeric predictors."""
+        df_default = aggregate.get_predictor_contributions()
+        df_explicit_false = aggregate.get_predictor_contributions(include_numeric_single_bin=False)
+        assert df_default.equals(df_explicit_false)
+
+    def test_get_predictor_contributions_include_numeric_single_bin_true(self, aggregate):
+        """Passing include_numeric_single_bin=True may include extra predictors."""
+        df_default = aggregate.get_predictor_contributions()
+        df_with_single = aggregate.get_predictor_contributions(include_numeric_single_bin=True)
+        # With single-bin numerics included, we should get at least as many unique predictors
+        default_predictors = set(df_default[_COL.PREDICTOR_NAME.value].to_list())
+        with_single_predictors = set(df_with_single[_COL.PREDICTOR_NAME.value].to_list())
+        assert default_predictors <= with_single_predictors
+
+    def test_get_predictor_value_contributions_include_numeric_single_bin_default(self, aggregate, predictors):
+        """Default (False) should exclude single-bin numeric predictors."""
+        df_default = aggregate.get_predictor_value_contributions(predictors=predictors)
+        df_explicit_false = aggregate.get_predictor_value_contributions(
+            predictors=predictors, include_numeric_single_bin=False
+        )
+        assert df_default.equals(df_explicit_false)
+
+    def test_get_predictor_value_contributions_include_numeric_single_bin_true(self, aggregate, predictors):
+        """Passing include_numeric_single_bin=True may include extra predictor values."""
+        df_default = aggregate.get_predictor_value_contributions(predictors=predictors)
+        df_with_single = aggregate.get_predictor_value_contributions(
+            predictors=predictors, include_numeric_single_bin=True
+        )
+        # With single-bin numerics included, we should get at least as many rows
+        assert df_with_single.shape[0] >= df_default.shape[0]
 
 
 class TestAggregateFrequencyPct:

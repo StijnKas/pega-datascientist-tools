@@ -131,7 +131,8 @@ defaults = _Defaults()
 def _resolve_agg_filter_kwargs(**kwargs) -> dict:
     """Extract and validate aggregate-layer filter kwargs, filling defaults.
 
-    Valid keys: ``sort_by``, ``descending``, ``missing``, ``remaining``.
+    Valid keys: ``sort_by``, ``descending``, ``missing``, ``remaining``,
+    ``include_numeric_single_bin``.
     Any other key raises ``TypeError``.
     ``sort_by`` is validated against the accepted ``_CONTRIBUTION_TYPE`` values.
     """
@@ -142,9 +143,12 @@ def _resolve_agg_filter_kwargs(**kwargs) -> dict:
         "descending": kwargs.pop("descending", defaults.descending),
         "missing": kwargs.pop("missing", defaults.missing),
         "remaining": kwargs.pop("remaining", defaults.remaining),
+        "include_numeric_single_bin": kwargs.pop("include_numeric_single_bin", defaults.include_numeric_single_bin),
     }
     if kwargs:
-        raise TypeError(f"Unexpected filter kwargs: {set(kwargs)}. Valid keys: sort_by, descending, missing, remaining")
+        raise TypeError(
+            f"Unexpected filter kwargs: {set(kwargs)}. Valid keys: sort_by, descending, missing, remaining, include_numeric_single_bin"
+        )
     return result
 
 
