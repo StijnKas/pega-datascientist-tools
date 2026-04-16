@@ -120,6 +120,7 @@ class _Defaults:
     descending: bool = True
     missing: bool = True
     remaining: bool = True
+    include_numeric_single_bin: bool = False
     sort_by: _CONTRIBUTION_TYPE = _CONTRIBUTION_TYPE.CONTRIBUTION_ABS
     display_by: _CONTRIBUTION_TYPE = _CONTRIBUTION_TYPE.CONTRIBUTION
 
