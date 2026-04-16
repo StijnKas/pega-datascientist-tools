@@ -55,6 +55,7 @@ class Aggregate(LazyNamespace):
         descending: bool = defaults.descending,
         missing: bool = defaults.missing,
         remaining: bool = defaults.remaining,
+        include_numeric_single_bin: bool = defaults.include_numeric_single_bin,
         sort_by: str = defaults.sort_by.value,
     ):
         """Get the top-n predictor contributions for a given context or overall.
@@ -71,6 +72,9 @@ class Aggregate(LazyNamespace):
                 Whether to include contributions for missing predictor values.
             remaining (bool):
                 Whether to include contributions for remaining predictors outside the top-n.
+            include_numeric_single_bin (bool):
+                Whether to include numeric predictors that have only a single
+                non-missing bin. Default is False (exclude them).
             sort_by (str):
                 Method to sort/select top contributions. Options include
                 `contribution`, `contribution_abs`, `contribution_weighted`.
@@ -93,6 +97,7 @@ class Aggregate(LazyNamespace):
             descending=descending,
             missing=missing,
             remaining=remaining,
+            include_numeric_single_bin=include_numeric_single_bin,
             sort_by=validated_sort_by.value,
         )
 
@@ -104,6 +109,7 @@ class Aggregate(LazyNamespace):
         descending: bool = defaults.descending,
         missing: bool = defaults.missing,
         remaining: bool = defaults.remaining,
+        include_numeric_single_bin: bool = defaults.include_numeric_single_bin,
         sort_by: str = defaults.sort_by.value,
     ):
         """Get the top-k predictor value contributions for a given context or overall.
@@ -122,6 +128,9 @@ class Aggregate(LazyNamespace):
                 Whether to include contributions for missing predictor values.
             remaining (bool):
                 Whether to include contributions for remaining predictors outside the top-n.
+            include_numeric_single_bin (bool):
+                Whether to include numeric predictors that have only a single
+                non-missing bin. Default is False (exclude them).
             sort_by (str):
                 Method to sort/select top contributions. Options include
                 `contribution`, `contribution_abs`, `contribution_weighted`.
@@ -145,6 +154,7 @@ class Aggregate(LazyNamespace):
             descending=descending,
             missing=missing,
             remaining=remaining,
+            include_numeric_single_bin=include_numeric_single_bin,
             sort_by=validated_sort_by.value,
         )
 
@@ -206,15 +216,12 @@ class Aggregate(LazyNamespace):
             .filter(pl.col(_COL.CONTRIBUTION.value) != 0.0)
             .sort(by=_COL.PREDICTOR_NAME.value)
         )
-        self.df_contextual = self._filter_single_bin_numeric_predictors(self.df_contextual)
-
         self.df_overall = (
             pl.scan_parquet(f"{self.data_folderpath}/*_OVERALL.parquet")
             .select(selected_columns)
             .filter(pl.col(_COL.CONTRIBUTION.value) != 0.0)
             .sort(by=_COL.PREDICTOR_NAME.value)
         )
-        self.df_overall = self._filter_single_bin_numeric_predictors(self.df_overall)
 
         self.initialized = True
 
@@ -226,6 +233,7 @@ class Aggregate(LazyNamespace):
         descending: bool = defaults.descending,
         missing: bool = defaults.missing,
         remaining: bool = defaults.remaining,
+        include_numeric_single_bin: bool = defaults.include_numeric_single_bin,
         sort_by: str = defaults.sort_by.value,
     ) -> pl.DataFrame:
         contexts = contexts or []
@@ -236,6 +244,9 @@ class Aggregate(LazyNamespace):
         # and load the data for those contexts
         df = self._get_df(contexts)
 
+        if not include_numeric_single_bin:
+            df = self._filter_single_bin_numeric_predictors(df)
+
         # If predictors are specified we filter the dataframe for those predictors
         if len(predictors) > 0:
             df = self._filter_for_predictors(df, predictors)
@@ -245,10 +256,15 @@ class Aggregate(LazyNamespace):
             df = df.filter(_COL.BIN_CONTENTS.value != _SPECIAL.MISSING.name)
 
         # Aggregate all the different types of contributions
-        # note: we need to aggregate frequency over partition to calculate weighted contributions
+        # note: total_frequency is computed per predictor so the weighted average
+        # divides by that predictor's own bin frequencies, not the entire partition.
         df = self._calculate_aggregates(
             df,
-            frequency_over=[_COL.PARTITON.value],
+            frequency_over=[
+                _COL.PARTITON.value,
+                _COL.PREDICTOR_NAME.value,
+                _COL.PREDICTOR_TYPE.value,
+            ],
             aggregate_over=[
                 _COL.PARTITON.value,
                 _COL.PREDICTOR_NAME.value,
@@ -300,12 +316,16 @@ class Aggregate(LazyNamespace):
         descending: bool = defaults.descending,
         missing: bool = defaults.missing,
         remaining: bool = defaults.remaining,
+        include_numeric_single_bin: bool = defaults.include_numeric_single_bin,
         sort_by: str = defaults.sort_by.value,
     ) -> pl.DataFrame:
         # if no contexts are provided, then we return the overall data
         # if contexts are provided, then we generate the context filters
         # and load the data for those contexts
         df = self._get_df(contexts)
+
+        if not include_numeric_single_bin:
+            df = self._filter_single_bin_numeric_predictors(df)
 
         # If predictors are specified we filter the dataframe for those predictors
         predictors = predictors or []
@@ -590,7 +610,7 @@ class Aggregate(LazyNamespace):
 
         def _apply(col, alias):
             return (
-                (pl.col(col) * pl.col(_COL.FREQUENCY.value)).mean() / pl.col(_SPECIAL.TOTAL_FREQUENCY.value).first()
+                (pl.col(col) * pl.col(_COL.FREQUENCY.value)).sum() / pl.col(_SPECIAL.TOTAL_FREQUENCY.value).first()
             ).alias(alias)
 
         return [
