@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 from pdstools.explanations import Explanations
-from pdstools.explanations.ExplanationsUtils import _CONTRIBUTION_TYPE, defaults
+from pdstools.explanations.ExplanationsUtils import _CONTRIBUTION_TYPE
 
 basePath = Path(__file__).parent.parent.parent.parent
 
@@ -85,10 +85,10 @@ def test_set_params(reports):
     assert params["top_k"] == 3
     assert params["from_date"] == "2026-01-01"
     assert params["to_date"] == "2026-01-31"
-    assert params["sort_by"] == defaults.sort_by.value
-    assert params["sort_by_text"] == defaults.sort_by.text
-    assert params["display_by"] == defaults.display_by.value
-    assert params["display_by_text"] == defaults.display_by.text
+    assert params["sort_by"] == "contribution_abs"
+    assert params["sort_by_text"] == "absolute average contribution"
+    assert params["display_by"] == "contribution"
+    assert params["display_by_text"] == "average contribution"
     assert params["data_folder"] == reports.aggregate_folder.name
 
 
@@ -156,8 +156,8 @@ class TestGenerateFilterKwargs:
 
             mock_set_params.assert_called_once()
             call_kwargs = mock_set_params.call_args
-            assert call_kwargs.kwargs["sort_by"] == defaults.sort_by
-            assert call_kwargs.kwargs["display_by"] == defaults.display_by
+            assert call_kwargs.kwargs["sort_by"] == _CONTRIBUTION_TYPE.CONTRIBUTION_ABS
+            assert call_kwargs.kwargs["display_by"] == _CONTRIBUTION_TYPE.CONTRIBUTION
 
     def test_generate_resolves_custom_kwargs(self, reports):
         """generate() passes custom sort_by/display_by through the resolver."""

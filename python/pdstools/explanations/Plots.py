@@ -12,7 +12,6 @@ from .ExplanationsUtils import (
     _SPECIAL,
     ContextInfo,
     _resolve_plot_filter_kwargs,
-    defaults,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,8 +40,8 @@ class Plots(LazyNamespace):
 
     def contributions(
         self,
-        top_n: int = defaults.top_n,
-        top_k: int = defaults.top_k,
+        top_n: int = 20,
+        top_k: int = 20,
         **filter_kwargs,
     ):
         """Plots contributions for the overall model or a selected context.
@@ -106,8 +105,8 @@ class Plots(LazyNamespace):
 
     def plot_contributions_for_overall(
         self,
-        top_n: int = defaults.top_n,
-        top_k: int = defaults.top_k,
+        top_n: int = 20,
+        top_k: int = 20,
         **filter_kwargs,
     ) -> tuple[go.Figure, list[go.Figure]]:
         display_by, resolved = self._resolve_kwargs(**filter_kwargs)
@@ -149,8 +148,8 @@ class Plots(LazyNamespace):
     def plot_contributions_by_context(
         self,
         context: dict[str, str],
-        top_n: int = defaults.top_n,
-        top_k: int = defaults.top_k,
+        top_n: int = 20,
+        top_k: int = 20,
         **filter_kwargs,
     ) -> tuple[go.Figure, go.Figure, list[go.Figure]]:
         display_by, resolved = self._resolve_kwargs(**filter_kwargs)

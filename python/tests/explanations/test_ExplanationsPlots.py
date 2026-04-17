@@ -8,7 +8,7 @@ from unittest.mock import patch
 import plotly.graph_objects as go
 import pytest
 from pdstools.explanations import Explanations
-from pdstools.explanations.ExplanationsUtils import _SPECIAL, defaults
+from pdstools.explanations.ExplanationsUtils import _SPECIAL
 from pdstools.explanations.Plots import Plots
 
 basePath = Path(__file__).parent.parent.parent.parent
@@ -67,7 +67,7 @@ def test_plot_contributions_for_overall_default_params(plots):
     # +1 for the remaining bar
     _assert_fig_bar_data_overall(
         overall_fig,
-        defaults.top_n + 1,
+        20 + 1,
         check_condition="le",
     )
     _assert_fig_bar_data_predictors(predictors_figs, 1, check_condition="gt")
@@ -354,12 +354,12 @@ def test_plot_contributions_for_overall_no_kwargs_uses_defaults(plots):
     """Calling with no filter kwargs should produce the same structure as passing explicit defaults."""
     _, figs_no_kwargs = plots.plot_contributions_for_overall()
     _, figs_explicit = plots.plot_contributions_for_overall(
-        sort_by=defaults.sort_by.value,
-        display_by=defaults.display_by.value,
-        descending=defaults.descending,
-        missing=defaults.missing,
-        remaining=defaults.remaining,
-        include_numeric_single_bin=defaults.include_numeric_single_bin,
+        sort_by="contribution_abs",
+        display_by="contribution",
+        descending=True,
+        missing=True,
+        remaining=True,
+        include_numeric_single_bin=False,
     )
     # Same number of predictor figures — same set of top predictors selected
     assert len(figs_no_kwargs) == len(figs_explicit)

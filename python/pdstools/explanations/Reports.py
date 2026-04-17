@@ -15,7 +15,7 @@ from ..utils.report_utils import (
     generate_zipped_report,
     run_quarto,
 )
-from .ExplanationsUtils import _CONTRIBUTION_TYPE, _resolve_plot_filter_kwargs, defaults
+from .ExplanationsUtils import _CONTRIBUTION_TYPE, _resolve_plot_filter_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +45,8 @@ class Reports(LazyNamespace):
     def generate(
         self,
         report_filename: str = "explanations_report.zip",
-        top_n: int = defaults.top_n,
-        top_k: int = defaults.top_k,
+        top_n: int = 20,
+        top_k: int = 20,
         zip_output: bool = False,
         **filter_kwargs,
     ):
@@ -136,12 +136,12 @@ class Reports(LazyNamespace):
 
     def _set_params(
         self,
-        top_n: int = defaults.top_n,
-        top_k: int = defaults.top_k,
+        top_n: int = 20,
+        top_k: int = 20,
         from_date: str = "",
         to_date: str = "",
-        sort_by: _CONTRIBUTION_TYPE = defaults.sort_by,
-        display_by: _CONTRIBUTION_TYPE = defaults.display_by,
+        sort_by: _CONTRIBUTION_TYPE = _CONTRIBUTION_TYPE.CONTRIBUTION_ABS,
+        display_by: _CONTRIBUTION_TYPE = _CONTRIBUTION_TYPE.CONTRIBUTION,
     ):
         params: dict[str, str | int] = {}
         params["top_n"] = top_n

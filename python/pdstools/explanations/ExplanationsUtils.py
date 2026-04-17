@@ -8,11 +8,9 @@ __all__ = [
     "ContextOperations",
     "_resolve_agg_filter_kwargs",
     "_resolve_plot_filter_kwargs",
-    "defaults",
 ]
 
 import json
-from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, TypedDict, cast
 
@@ -113,21 +111,6 @@ class _SPECIAL(Enum):
     MISSING = "missing"
 
 
-@dataclass(frozen=True)
-class _Defaults:
-    top_n: int = 20
-    top_k: int = 20
-    descending: bool = True
-    missing: bool = True
-    remaining: bool = True
-    include_numeric_single_bin: bool = False
-    sort_by: _CONTRIBUTION_TYPE = _CONTRIBUTION_TYPE.CONTRIBUTION_ABS
-    display_by: _CONTRIBUTION_TYPE = _CONTRIBUTION_TYPE.CONTRIBUTION
-
-
-defaults = _Defaults()
-
-
 def _resolve_agg_filter_kwargs(**kwargs) -> dict:
     """Extract and validate aggregate-layer filter kwargs, filling defaults.
 
@@ -136,14 +119,14 @@ def _resolve_agg_filter_kwargs(**kwargs) -> dict:
     Any other key raises ``TypeError``.
     ``sort_by`` is validated against the accepted ``_CONTRIBUTION_TYPE`` values.
     """
-    sort_by = kwargs.pop("sort_by", defaults.sort_by.value)
+    sort_by = kwargs.pop("sort_by", "contribution_abs")
     _CONTRIBUTION_TYPE.validate_and_get_type(sort_by)
     result = {
         "sort_by": sort_by,
-        "descending": kwargs.pop("descending", defaults.descending),
-        "missing": kwargs.pop("missing", defaults.missing),
-        "remaining": kwargs.pop("remaining", defaults.remaining),
-        "include_numeric_single_bin": kwargs.pop("include_numeric_single_bin", defaults.include_numeric_single_bin),
+        "descending": kwargs.pop("descending", True),
+        "missing": kwargs.pop("missing", True),
+        "remaining": kwargs.pop("remaining", True),
+        "include_numeric_single_bin": kwargs.pop("include_numeric_single_bin", False),
     }
     if kwargs:
         raise TypeError(
@@ -162,7 +145,7 @@ def _resolve_plot_filter_kwargs(**kwargs) -> dict:
     ``sort_by`` and ``display_by`` are returned as ``_CONTRIBUTION_TYPE`` enum
     members so callers can use ``.value`` and ``.alt`` without re-validating.
     """
-    display_by = kwargs.pop("display_by", defaults.display_by.value)
+    display_by = kwargs.pop("display_by", "contribution")
     display_by_enum = _CONTRIBUTION_TYPE.validate_and_get_type(display_by)
     result = _resolve_agg_filter_kwargs(**kwargs)
     result["sort_by"] = _CONTRIBUTION_TYPE.validate_and_get_type(result["sort_by"])
