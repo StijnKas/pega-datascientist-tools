@@ -14,7 +14,6 @@ from .ExplanationsUtils import (
     ContextInfo,
     ContextOperations,
     _resolve_agg_filter_kwargs,
-    defaults,
     validate,
 )
 
@@ -51,7 +50,7 @@ class Aggregate(LazyNamespace):
     def get_predictor_contributions(
         self,
         context: dict[str, str] | None = None,
-        top_n: int = defaults.top_n,
+        top_n: int = 20,
         **filter_kwargs,
     ):
         """Get the top-n predictor contributions for a given context or overall.
@@ -97,7 +96,7 @@ class Aggregate(LazyNamespace):
         self,
         predictors: list[str],
         context: dict[str, str] | None = None,
-        top_k: int = defaults.top_k,
+        top_k: int = 20,
         **filter_kwargs,
     ):
         """Get the top-k predictor value contributions for a given context or overall.
@@ -213,12 +212,12 @@ class Aggregate(LazyNamespace):
         self,
         contexts: list[ContextInfo] | None = None,
         predictors: list[str] | None = None,
-        limit: int = defaults.top_n,
-        descending: bool = defaults.descending,
-        missing: bool = defaults.missing,
-        remaining: bool = defaults.remaining,
-        include_numeric_single_bin: bool = defaults.include_numeric_single_bin,
-        sort_by: str = defaults.sort_by.value,
+        limit: int = 20,
+        descending: bool = True,
+        missing: bool = True,
+        remaining: bool = True,
+        include_numeric_single_bin: bool = False,
+        sort_by: str = "contribution_abs",
     ) -> pl.DataFrame:
         contexts = contexts or []
         predictors = predictors or []
@@ -296,12 +295,12 @@ class Aggregate(LazyNamespace):
         self,
         contexts: list[ContextInfo] | None = None,
         predictors: list[str] | None = None,
-        limit: int = defaults.top_k,
-        descending: bool = defaults.descending,
-        missing: bool = defaults.missing,
-        remaining: bool = defaults.remaining,
-        include_numeric_single_bin: bool = defaults.include_numeric_single_bin,
-        sort_by: str = defaults.sort_by.value,
+        limit: int = 20,
+        descending: bool = True,
+        missing: bool = True,
+        remaining: bool = True,
+        include_numeric_single_bin: bool = False,
+        sort_by: str = "contribution_abs",
     ) -> pl.DataFrame:
         # if no contexts are provided, then we return the overall data
         # if contexts are provided, then we generate the context filters
@@ -403,7 +402,7 @@ class Aggregate(LazyNamespace):
     def _get_df_with_sort_info(
         self,
         df: pl.LazyFrame,
-        sort_by: str = defaults.sort_by.value,
+        sort_by: str = "contribution_abs",
     ) -> pl.LazyFrame:
         """Add a sort column and value to the dataframe based on the predictor type.
         # Sort logic:
@@ -435,9 +434,9 @@ class Aggregate(LazyNamespace):
         self,
         df: pl.LazyFrame,
         over: list[str],
-        sort_by: str = defaults.sort_by.value,
-        limit: int = defaults.top_k,
-        descending: bool = defaults.descending,
+        sort_by: str = "contribution_abs",
+        limit: int = 20,
+        descending: bool = True,
     ) -> pl.LazyFrame:
         """Return the top `limit` rows per group, ranked by `sort_by`.
 
