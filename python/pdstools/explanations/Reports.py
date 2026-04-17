@@ -15,7 +15,7 @@ from ..utils.report_utils import (
     generate_zipped_report,
     run_quarto,
 )
-from .ExplanationsUtils import _CONTRIBUTION_TYPE, defaults
+from .ExplanationsUtils import _CONTRIBUTION_TYPE, _resolve_plot_filter_kwargs, defaults
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +47,8 @@ class Reports(LazyNamespace):
         report_filename: str = "explanations_report.zip",
         top_n: int = defaults.top_n,
         top_k: int = defaults.top_k,
-        sort_by: str = defaults.sort_by.value,
-        display_by: str = defaults.display_by.value,
         zip_output: bool = False,
+        **filter_kwargs,
     ):
         """Generate the explanations report.
 
@@ -61,13 +60,16 @@ class Reports(LazyNamespace):
             Number of top explanations to include.
         top_k : int
             Number of top features to include in explanations.
-        sort_by : _CONTRIBUTION_TYPE
-            Contribution type enum used for sorting and ranking data.
-        display_by : _CONTRIBUTION_TYPE
-            Contribution type enum used for display axes and report text.
         zip_output : bool
             Whether to zip the output report.
             The filename will be used as the zip file name.
+        **filter_kwargs:
+            Optional filtering and display controls. Valid keys:
+
+            - ``sort_by`` (str): Column to rank/select top predictors.
+              Default: ``"contribution_abs"``.
+            - ``display_by`` (str): Column to use for the report axis values.
+              Default: ``"contribution"``.
 
         Notes
         -----
@@ -81,8 +83,9 @@ class Reports(LazyNamespace):
             logger.error("Validation failed: %s", e)
             raise
 
-        validated_sort_by = _CONTRIBUTION_TYPE.validate_and_get_type(sort_by)
-        validated_display_by = _CONTRIBUTION_TYPE.validate_and_get_type(display_by)
+        resolved = _resolve_plot_filter_kwargs(**filter_kwargs)
+        validated_display_by = resolved.pop("display_by")
+        validated_sort_by = resolved.pop("sort_by")
 
         self._validate_report_dir()
 
