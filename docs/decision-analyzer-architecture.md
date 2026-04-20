@@ -95,10 +95,14 @@ page's sidebar. Session state keys:
 - `page_channel_filter` — UI display value ("Any" or "Channel/Direction")
 - `page_channel_expr` — Polars filter expression or None
 
-Applied via `DecisionAnalyzer.filtered_sample` property, which reads session state
-and filters the sample. To add new contextual filters (e.g., Issue, Group), extend
-`contextual_filters()`, add corresponding session state keys, and update
-`filtered_sample` to collect all filter expressions.
+Pages collect the active expressions via `collect_page_filters()` (also in
+`da_streamlit_utils.py`) and pass the resulting list to
+`DecisionAnalyzer.filtered(filters)`. The library deliberately does **not**
+read `st.session_state` itself — keeping that translation in the app layer
+means the analyser stays usable from notebooks and scripts. To add a new
+contextual filter (e.g. Issue, Group), add a selector to
+`contextual_filters()`, store the expression in a `page_{name}_expr` key,
+and append that key to the tuple inside `collect_page_filters()`.
 
 ### Ranking
 
@@ -131,7 +135,7 @@ definition.
 3. Set `st.session_state["sidebar"] = st.sidebar`
 4. Add page-specific controls in the sidebar block
 5. Call `contextual_filters()` as the **last** sidebar item
-6. Read `filtered_sample` and `page_channel_expr` from session state
+6. Compute `filtered_data = da.filtered(collect_page_filters())` for filtered access to the sample
 7. Check for empty results when channel filter is active (standard pattern in all pages)
 8. Use `additional_filters=channel_filter` when calling DA query methods
 
@@ -140,7 +144,7 @@ definition.
 1. Add selector function in `da_streamlit_utils.py` (follow `channel_direction_selector()` pattern)
 2. Add it inside `contextual_filters()` after the channel selector
 3. Store selection in `page_{name}_filter` / `page_{name}_expr` session state keys
-4. Update `DecisionAnalyzer.filtered_sample` to read the new expression
+4. Append the new `page_{name}_expr` key to the tuple in `collect_page_filters()`
 5. Update empty-data checks on all pages
 
 ### Adding a New DA Method

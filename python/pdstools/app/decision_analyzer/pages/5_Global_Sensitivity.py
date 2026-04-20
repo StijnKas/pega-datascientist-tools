@@ -1,6 +1,6 @@
 import polars as pl
 import streamlit as st
-from da_streamlit_utils import contextual_filters, ensure_data, get_current_index
+from da_streamlit_utils import collect_page_filters, contextual_filters, ensure_data, get_current_index
 
 from pdstools.decision_analyzer.utils import apply_filter
 
@@ -34,7 +34,7 @@ with st.session_state["sidebar"]:
     contextual_filters()
 
 # Apply channel filter to sample data
-filtered_data = st.session_state.decision_data.filtered_sample
+filtered_data = st.session_state.decision_data.filtered(collect_page_filters())
 
 # Check for empty results when a specific channel is selected
 if st.session_state.get("page_channel_filter", "Any") != "Any":

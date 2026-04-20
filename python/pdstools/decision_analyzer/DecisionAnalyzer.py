@@ -772,29 +772,51 @@ class DecisionAnalyzer:
 
     @property
     def filtered_sample(self):
-        """Sample data with page-level filters applied.
+        """Deprecated: use `filtered(filters)` and pass filters explicitly.
 
-        Reads filter expressions from st.session_state.page_channel_expr if available.
-        Falls back to unfiltered sample if no page filters are set or not in Streamlit context.
-
-        This property is not cached because it depends on mutable session_state.
-        Page-level code should cache the result locally if needed for performance.
+        Kept as a thin alias that returns the unfiltered sample. Apps that
+        need page-level filtering should collect the relevant Polars
+        expressions in the app layer (see
+        ``pdstools.app.decision_analyzer.da_streamlit_utils.collect_page_filters``)
+        and call :meth:`filtered` instead.
 
         Returns
         -------
         pl.LazyFrame
-            Sampled data with page filters applied, or unfiltered sample if no filters.
+            The unfiltered sample. Equivalent to ``self.sample``.
         """
-        try:
-            import streamlit as st
+        import warnings
 
-            channel_expr = st.session_state.get("page_channel_expr", None)
-            if channel_expr is not None:
-                return apply_filter(self.sample, [channel_expr])
-        except ImportError:
-            pass  # Not in Streamlit context
-
+        warnings.warn(
+            "DecisionAnalyzer.filtered_sample is deprecated; "
+            "call filtered(filters) with explicit page filters instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.sample
+
+    def filtered(self, filters: list[pl.Expr] | pl.Expr | None = None) -> pl.LazyFrame:
+        """Return ``self.sample`` with the given filter expressions applied.
+
+        Parameters
+        ----------
+        filters : list[pl.Expr] | pl.Expr | None, default None
+            Filter expressions to AND together. ``None`` or an empty list
+            returns the sample unchanged. Apps should construct this list
+            from their own state (for Streamlit pages, see
+            :func:`pdstools.app.decision_analyzer.da_streamlit_utils.collect_page_filters`);
+            the library deliberately does not read UI state.
+
+        Returns
+        -------
+        pl.LazyFrame
+            The (possibly filtered) sample.
+        """
+        if filters is None:
+            return self.sample
+        if isinstance(filters, list) and not filters:
+            return self.sample
+        return apply_filter(self.sample, filters)
 
     def get_available_fields_for_filtering(self, categoricalOnly=False) -> list[str]:
         """Return column names available for data filtering.

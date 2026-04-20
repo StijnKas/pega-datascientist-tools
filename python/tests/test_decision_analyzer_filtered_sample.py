@@ -1,8 +1,7 @@
-"""Tests for DecisionAnalyzer.filtered_sample property."""
+"""Tests for DecisionAnalyzer.filtered and the Streamlit filter glue."""
 
 import polars as pl
 import pytest
-from unittest.mock import MagicMock, patch
 
 
 @pytest.fixture
@@ -25,50 +24,80 @@ def mock_decision_analyzer(sample_data_v2):
     """Create a mock DecisionAnalyzer with sample property."""
     from pdstools.decision_analyzer.DecisionAnalyzer import DecisionAnalyzer
 
-    # Create analyzer with minimal init
     analyzer = DecisionAnalyzer.__new__(DecisionAnalyzer)
-
-    # Mock the sample property to return our test data
     type(analyzer).sample = property(lambda self: sample_data_v2.lazy())
-
     return analyzer
 
 
-def test_filtered_sample_without_filters(mock_decision_analyzer, sample_data_v2):
-    """When no page filters set, filtered_sample should return sample unchanged."""
-    with patch("streamlit.session_state", new_callable=MagicMock) as mock_st:
-        mock_st.get.return_value = None  # No page_channel_expr
+def test_filtered_without_filters(mock_decision_analyzer, sample_data_v2):
+    """``filtered(None)`` and ``filtered([])`` should return sample unchanged."""
+    expected = sample_data_v2.lazy().collect()
+    assert mock_decision_analyzer.filtered(None).collect().equals(expected)
+    assert mock_decision_analyzer.filtered([]).collect().equals(expected)
 
+
+def test_filtered_with_single_expression(mock_decision_analyzer):
+    """A single Polars expression should be applied."""
+    expr = (pl.col("Channel") == "Web") & (pl.col("Direction") == "Inbound")
+    result = mock_decision_analyzer.filtered(expr).collect()
+
+    assert len(result) == 2
+    assert (result["Channel"] == "Web").all()
+    assert (result["Direction"] == "Inbound").all()
+
+
+def test_filtered_with_list_of_expressions(mock_decision_analyzer):
+    """Multiple expressions should AND together."""
+    filters = [pl.col("Channel") == "Web", pl.col("Priority") >= 95.0]
+    result = mock_decision_analyzer.filtered(filters).collect()
+
+    assert len(result) == 1
+    assert result["Action"][0] == "A1"
+
+
+def test_filtered_sample_is_deprecated(mock_decision_analyzer, sample_data_v2):
+    """The legacy ``filtered_sample`` alias should warn but still return the sample."""
+    with pytest.warns(DeprecationWarning, match="filtered_sample is deprecated"):
         result = mock_decision_analyzer.filtered_sample
-        expected = sample_data_v2.lazy()
-
-        # Compare collected DataFrames
-        assert result.collect().equals(expected.collect())
+    assert result.collect().equals(sample_data_v2.lazy().collect())
 
 
-def test_filtered_sample_with_channel_filter(mock_decision_analyzer, sample_data_v2):
-    """When page_channel_expr is set, filtered_sample should apply the filter."""
-    with patch("streamlit.session_state", new_callable=MagicMock) as mock_st:
-        # Set up a channel filter for Web/Inbound
-        channel_expr = (pl.col("Channel") == "Web") & (pl.col("Direction") == "Inbound")
-        mock_st.get.return_value = channel_expr
+def test_filtered_does_not_import_streamlit(mock_decision_analyzer, monkeypatch):
+    """``filtered`` must not look at Streamlit state even when it's set."""
+    from pdstools.app.decision_analyzer import da_streamlit_utils
 
-        result = mock_decision_analyzer.filtered_sample
+    monkeypatch.setattr(
+        da_streamlit_utils.st,
+        "session_state",
+        {"page_channel_expr": pl.col("Channel") == "Web"},
+        raising=False,
+    )
 
-        # Should only have Web/Inbound rows (first 2 rows)
-        result_collected = result.collect()
-        assert len(result_collected) == 2
-        assert (result_collected["Channel"] == "Web").all()
-        assert (result_collected["Direction"] == "Inbound").all()
+    # No filter passed → full sample regardless of session_state contents.
+    assert len(mock_decision_analyzer.filtered().collect()) == 6
 
 
-def test_filtered_sample_outside_streamlit(mock_decision_analyzer, sample_data_v2):
-    """When not in Streamlit context, filtered_sample should return sample."""
-    # Don't mock streamlit - let ImportError occur naturally
-    result = mock_decision_analyzer.filtered_sample
-    expected = sample_data_v2.lazy()
+def test_collect_page_filters_returns_expressions(monkeypatch):
+    """The Streamlit helper should pull only set keys from session_state."""
+    from pdstools.app.decision_analyzer import da_streamlit_utils
+    from pdstools.app.decision_analyzer.da_streamlit_utils import collect_page_filters
 
-    assert result.collect().equals(expected.collect())
+    expr = pl.col("Channel") == "Web"
+    monkeypatch.setattr(da_streamlit_utils.st, "session_state", {"page_channel_expr": expr}, raising=False)
+
+    result = collect_page_filters()
+    assert len(result) == 1
+    # Expressions don't compare with ==, but should be the same object we stored.
+    assert result[0] is expr
+
+
+def test_collect_page_filters_empty_when_none_set(monkeypatch):
+    """No keys set → empty list."""
+    from pdstools.app.decision_analyzer import da_streamlit_utils
+    from pdstools.app.decision_analyzer.da_streamlit_utils import collect_page_filters
+
+    monkeypatch.setattr(da_streamlit_utils.st, "session_state", {}, raising=False)
+    assert collect_page_filters() == []
 
 
 @pytest.fixture
