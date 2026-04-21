@@ -34,12 +34,6 @@ from ..utils.types import QUERY
 __all__ = ["Plots", "fig_update_facet"]
 
 logger = logging.getLogger(__name__)
-try:
-    import plotly.express as px
-    import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
-except ImportError as e:  # pragma: no cover
-    logger.debug(f"Failed to import optional dependencies: {e}")
 
 if TYPE_CHECKING:  # pragma: no cover
     from .ADMDatamart import ADMDatamart
@@ -189,6 +183,9 @@ def add_metric_limit_lines(
 
 
 def distribution_graph(df: pl.LazyFrame, title: str):
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+
     plot_df = df.collect()
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(
@@ -318,6 +315,8 @@ class Plots(LazyNamespace):
 
         if return_df:
             return df
+
+        import plotly.express as px
 
         title = "over all models"
         fig = px.scatter(
@@ -489,6 +488,8 @@ class Plots(LazyNamespace):
             return df
         final_df = df.collect()
 
+        import plotly.express as px
+
         facet_col_wrap = None
         if facet:
             unique_facet_values = final_df.select(facet).unique().height
@@ -577,6 +578,8 @@ class Plots(LazyNamespace):
 
         if return_df:
             return df
+
+        import plotly.express as px
 
         title = "over all models" if facet is None else f"per {facet}"
         fig = px.histogram(
@@ -948,6 +951,8 @@ class Plots(LazyNamespace):
         if pre_aggs.select(pl.first().len()).item() == 0:
             return None
 
+        import plotly.graph_objects as go
+
         fig = go.Figure()
 
         # Fixed colors for specific predictor categories
@@ -1275,6 +1280,8 @@ class Plots(LazyNamespace):
         if return_df:
             return df
 
+        import plotly.express as px
+
         fig = px.bar(
             df.collect(),
             x="Contribution",
@@ -1377,6 +1384,8 @@ class Plots(LazyNamespace):
         if return_df:
             return collected.lazy()
 
+        import plotly.express as px
+
         title = "over all models"
         fig = px.imshow(
             collected.select(pl.all().exclude(by_name)),
@@ -1457,6 +1466,8 @@ class Plots(LazyNamespace):
 
         if return_df:
             return gains_data.lazy()
+
+        import plotly.express as px
 
         # Create the plot
         if by is None:
@@ -1606,6 +1617,8 @@ class Plots(LazyNamespace):
         if return_df:
             return df.lazy()
 
+        import plotly.graph_objects as go
+
         # Create the plot
         fig = go.Figure()
 
@@ -1715,6 +1728,8 @@ class Plots(LazyNamespace):
         if return_df:
             return df
 
+        import plotly.express as px
+
         context_keys = [px.Constant("All contexts")] + group_by
 
         colorscale = get_colorscale(metric)
@@ -1806,6 +1821,8 @@ class Plots(LazyNamespace):
 
         if return_df:
             return collected
+
+        import plotly.express as px
 
         fig = px.box(
             collected.with_columns(_Type=pl.concat_str(reversed(by), separator=" / ")),
@@ -1908,6 +1925,8 @@ class Plots(LazyNamespace):
 
         if return_df:
             return plot_df
+
+        import plotly.express as px
 
         fig = px.bar(
             plot_df.collect(),
@@ -2021,6 +2040,8 @@ class Plots(LazyNamespace):
 
         if return_df:
             return overlap_data
+
+        import plotly.express as px
 
         plt = px.imshow(
             overlap_data.drop(group_col_name),
