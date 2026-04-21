@@ -541,50 +541,50 @@ class IH:
             customer_sequences.append(tuple(user_actions))
             customer_outcomes.append(tuple(outcome_actions))
 
-        def ngrams_and_bigrams(sequences, outcomes):
-            ngrams = []
-            bigrams = []
-            bigrams_all = []
-
+        def accumulate_counts(sequences, outcomes):
+            # Iterate over positive end positions j only, and use the
+            # closed-form multiplicity of each (bigram, ending j) pair to
+            # increment the counters directly — no intermediate ngram lists.
+            # Equivalence to the original triple-list implementation is
+            # locked in by python/tests/ih/test_IH_get_sequences.py.
             for seq, out in zip(sequences, outcomes, strict=False):
                 ngrams_seen = set()
 
-                for n in range(2, len(seq) + 1):
-                    for i in range(len(seq) - n + 1):
-                        ngram = seq[i : i + n]
-                        ngram_outcomes = out[i : i + n]
+                positive_positions = [j for j, o in enumerate(out) if o == 1]
+                for j in positive_positions:
+                    if j < 1:
+                        # Need at least a bigram (n >= 2 => start index j-1 >= 0).
+                        continue
 
-                        if ngram_outcomes[-1] == 1:  # Ends in positive_outcome_label
-                            if len(ngram) == 2:
-                                bigrams_all.append(ngram)
-                                bigrams.append(ngram)
-                            else:
-                                ngrams.append(ngram)
-                                for j in range(len(ngram) - 1):
-                                    bigrams_all.append(ngram[j : j + 2])
+                    # Ending bigram seq[j-1:j+1] — multiplicity j in bigrams_all,
+                    # 1 in bigrams (n=2 only).
+                    ending = seq[j - 1 : j + 1]
+                    count_sequences[0][ending] += j
+                    count_actions[0][(seq[j - 1],)] += j
+                    count_actions[1][(seq[j],)] += j
+                    count_sequences[2][ending] += 1
+                    if ending not in ngrams_seen:
+                        count_sequences[3][ending] += 1
+                        ngrams_seen.add(ending)
 
-                            if ngram not in ngrams_seen:
-                                count_sequences[3][ngram] += 1
-                                ngrams_seen.add(ngram)
+                    # Earlier bigrams seq[k:k+2] for k = 0..j-2 — closed-form
+                    # multiplicity (k + 1) in bigrams_all.
+                    for k in range(j - 1):
+                        bigram = seq[k : k + 2]
+                        mult = k + 1
+                        count_sequences[0][bigram] += mult
+                        count_actions[0][(seq[k],)] += mult
+                        count_actions[1][(seq[k + 1],)] += mult
 
-            return ngrams, bigrams, bigrams_all
+                    # ≥3-grams ending at j: seq[j-n+1:j+1] for n = 3..j+1.
+                    for n in range(3, j + 2):
+                        ngram = seq[j - n + 1 : j + 1]
+                        count_sequences[1][ngram] += 1
+                        if ngram not in ngrams_seen:
+                            count_sequences[3][ngram] += 1
+                            ngrams_seen.add(ngram)
 
-        ngrams, bigrams, bigrams_all = ngrams_and_bigrams(
-            customer_sequences,
-            customer_outcomes,
-        )
-
-        # Frequency tables
-        for seq in ngrams:
-            count_sequences[1][seq] += 1
-
-        for bigram in bigrams_all:
-            count_sequences[0][bigram] += 1
-            count_actions[0][(bigram[0],)] += 1
-            count_actions[1][(bigram[1],)] += 1
-
-        for bigram in bigrams:
-            count_sequences[2][bigram] += 1
+        accumulate_counts(customer_sequences, customer_outcomes)
 
         return customer_sequences, customer_outcomes, count_actions, count_sequences
 
