@@ -205,6 +205,22 @@ da.get_offer_quality(propensity_th=0.5, priority_th=50)
 offer_quality_piecharts(df, propensity_th=0.5, AvailableNBADStages=stages)
 ```
 
+### `Reports.excel_report(predictor_binning=...)` is keyword-only
+
+```python
+# Before:
+dm.generate.excel_report("Tables.xlsx", True)
+
+# After (v5):
+dm.generate.excel_report("Tables.xlsx", predictor_binning=True)
+```
+
+`Reports` methods also no longer `print()` status / warning messages;
+they log through `logging.getLogger("pdstools.adm.Reports")`. Configure
+that logger (or the root logger at `INFO`/`WARNING`) if you relied on
+the stdout output — e.g. the "Data exported to …" message and the
+Excel size / row-limit warnings.
+
 ---
 
 ## Behaviour changes (no API change, may affect output)
