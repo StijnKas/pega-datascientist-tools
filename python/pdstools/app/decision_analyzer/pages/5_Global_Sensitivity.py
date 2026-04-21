@@ -4,6 +4,9 @@ from da_streamlit_utils import collect_page_filters, contextual_filters, ensure_
 from pdstools.utils.streamlit_utils import get_current_index
 
 from pdstools.decision_analyzer.utils import apply_filter
+from pdstools.utils.streamlit_utils import standard_page_config
+
+standard_page_config(page_title="Global Sensitivity · Decision Analysis")
 
 # Backlog for this page is tracked in docs/plans/decision-analyzer-TODO.md
 # (Streamlit Pages → Page 5 — Global Sensitivity).

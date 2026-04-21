@@ -12,6 +12,10 @@ from da_streamlit_utils import (
 )
 from pdstools.utils.streamlit_utils import get_current_index
 
+from pdstools.utils.streamlit_utils import standard_page_config
+
+standard_page_config(page_title="Action Funnel · Decision Analysis")
+
 "# Action Funnel"
 
 """
