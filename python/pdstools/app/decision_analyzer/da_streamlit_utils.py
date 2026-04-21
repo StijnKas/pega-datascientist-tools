@@ -690,6 +690,24 @@ def get_available_channel_directions(sample_df: pl.LazyFrame) -> list[str]:
         return []
 
 
+def collect_page_filters() -> list[pl.Expr]:
+    """Gather page-level filter expressions from Streamlit session state.
+
+    Pages should call this and pass the result to
+    :meth:`DecisionAnalyzer.filtered` rather than relying on the analyser
+    to reach into ``st.session_state`` itself. Adding new contextual
+    filters (e.g. Issue, Group) means appending another ``page_*_expr``
+    key here — no library changes required.
+
+    Returns
+    -------
+    list[pl.Expr]
+        Active page-level filters. Empty list if none are set.
+    """
+    keys = ("page_channel_expr",)
+    return [expr for key in keys if (expr := st.session_state.get(key)) is not None]
+
+
 def _update_channel_filter():
     """Callback to update filter expression when channel selection changes."""
     selected = st.session_state._channel_direction_widget
@@ -722,7 +740,8 @@ def channel_direction_selector():
 
     Stores selection in st.session_state.page_channel_filter (UI value)
     and st.session_state.page_channel_expr (Polars filter expression).
-    The filter is applied via DecisionAnalyzer.filtered_sample property.
+    Pages collect this expression via :func:`collect_page_filters` and
+    apply it through ``DecisionAnalyzer.filtered``.
     """
     da = st.session_state.decision_data
 

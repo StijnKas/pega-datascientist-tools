@@ -5,7 +5,7 @@ import plotly.express as px
 import polars as pl
 import streamlit as st
 
-from da_streamlit_utils import contextual_filters, ensure_data
+from da_streamlit_utils import collect_page_filters, contextual_filters, ensure_data
 from pdstools.decision_analyzer.utils import apply_filter
 
 "# Thresholding Analysis"
@@ -26,7 +26,7 @@ ensure_data()
 da = st.session_state.decision_data
 
 # Apply channel filter to sample data
-filtered_data = da.filtered_sample
+filtered_data = da.filtered(collect_page_filters())
 
 # Check for empty results when a specific channel is selected
 if st.session_state.get("page_channel_filter", "Any") != "Any":

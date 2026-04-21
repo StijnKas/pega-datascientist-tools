@@ -1,6 +1,7 @@
 import polars as pl
 import streamlit as st
 from da_streamlit_utils import (
+    collect_page_filters,
     contextual_filters,
     ensure_data,
     get_current_index,
@@ -70,7 +71,7 @@ facetting = "pyChannel/pyDirection"
 # )
 with st.session_state["sidebar"]:
     scope_options = st.session_state.decision_data.get_possible_scope_values()
-    filtered_data = st.session_state.decision_data.filtered_sample
+    filtered_data = st.session_state.decision_data.filtered(collect_page_filters())
     comparison_filter_columns = [
         c
         for c in st.session_state.decision_data.get_available_fields_for_filtering(

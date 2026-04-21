@@ -1,7 +1,7 @@
 # python/pdstools/app/decision_analyzer/pages/3_Overview.py
 import polars as pl
 import streamlit as st
-from da_streamlit_utils import ensure_data
+from da_streamlit_utils import collect_page_filters, ensure_data
 from pdstools.decision_analyzer.plots import offer_quality_single_pie
 
 # Backlog for this page is tracked in docs/plans/decision-analyzer-TODO.md
@@ -105,7 +105,7 @@ with col2:
         approach, balanced with business value.
         """
 
-        total_decisions = da.filtered_sample.select(pl.n_unique("Interaction ID")).collect().item()
+        total_decisions = da.filtered(collect_page_filters()).select(pl.n_unique("Interaction ID")).collect().item()
         st.plotly_chart(
             st.session_state.decision_data.plot.sensitivity(
                 win_rank=1,
