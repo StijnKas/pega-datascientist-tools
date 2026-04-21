@@ -149,10 +149,27 @@ model=...)` directly.
 Previously `def __init__(self, *args, **kwargs)`. Now uses explicit
 parameters matching the documented constructor signature.
 
-### `Explanations.filter_*`
+### Explanations: explicit filter parameters
 
-Previously `**filter_kwargs`. Now uses explicit parameters per
-`docs/plans/explanations/typed-filter-kwargs.md`.
+The `**filter_kwargs` catch-all on the Explanations `Plots`,
+`Aggregate`, and `Reports` public methods has been replaced with
+explicit, keyword-only parameters: `sort_by`, `display_by`,
+`descending`, `missing`, `remaining`, `include_numeric_single_bin`.
+Affected methods: `Plots.contributions`,
+`Plots.plot_contributions_for_overall`,
+`Plots.plot_contributions_by_context`,
+`Aggregate.get_predictor_contributions`,
+`Aggregate.get_predictor_value_contributions`, and `Reports.generate`.
+Unknown kwargs now raise `TypeError`. New `SortBy` / `DisplayBy`
+`Literal` aliases are exported alongside.
+
+```python
+# Before (v4.x):
+plots.contributions(**{"sort_by": "value", "typo_arg": True})  # silently dropped
+
+# After (v5):
+plots.contributions(sort_by="value")  # unknown kwargs raise TypeError
+```
 
 ### `DecisionAnalyzer.__init__` and `from_*` classmethods
 
