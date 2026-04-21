@@ -13,6 +13,14 @@ dependencies and execution.
 - **Git workflow.** Do not `git commit` on the user's working branch.
   Stage with `git add` and let the user commit. Exception: branches you
   created yourself, or when the user explicitly asks for a commit/PR.
+- **Stay focused, but fix tightly-coupled bugs.** Don't fix
+  pre-existing issues unrelated to the task at hand. However, if a
+  refactor surfaces a bug that is directly caused by or tightly
+  coupled to the code you're changing (e.g. a wrong return-type
+  annotation that callers were defensively working around, a stale
+  `# type: ignore` that hid a real mismatch), fix it in the same PR
+  and call it out in the commit message. Splitting it off creates a
+  regression window where the fix lacks the surrounding context.
 - **Product naming.** User-facing text: "Decision Analysis Tool",
   "ADM Health Check". Code/CLI: `decision_analyzer`, `adm_healthcheck`.
 - **`verbose` parameters.** Reserve `verbose` for genuine user-facing
@@ -146,6 +154,31 @@ python -m build --sdist --wheel --outdir dist/ .
   `Optional[X]`). Do not import `Optional`, `Union`, `List`, `Dict`
   from `typing`.
 
+#### `# type: ignore` is a smell, not a tool
+Treat `# type: ignore` as a last resort, and treat existing ones as
+suspicious during any refactor — they often hide real bugs.
+
+- **Drop redundant explicit annotations first.** Most
+  `# type: ignore[assignment]` on lines like
+  `df: pl.DataFrame = lf.collect()` are caused by the redundant
+  annotation itself (polars overloads return the right type already).
+  Remove the annotation; the ignore disappears with it.
+- **Use `cast` over `# type: ignore[arg-type]` for genuine narrowing.**
+  `cast(list[str], scope_config["group_cols"])` documents intent;
+  `# type: ignore[arg-type]` hides it.
+- **Class-level annotations for lazily-set attributes.** When an
+  attribute is assigned from a method (not `__init__`), declare it at
+  class level (`_num_sample_interactions: int`) instead of writing
+  `# type: ignore[attr-defined]` at every access site.
+- **`# type: ignore[return-value]` almost always means the signature
+  lies.** If you have to suppress a return mismatch, the real fix is
+  to update the function's annotated return type to match what it
+  actually returns. Callers downstream are probably defensively
+  working around the wrong type.
+- Reserve `# type: ignore` for genuinely external problems
+  (third-party stubs missing, library bugs) and add a comment
+  explaining why.
+
 ### Naming conventions
 - Functions/variables: `snake_case`.
 - Classes: `PascalCase`.
@@ -196,6 +229,11 @@ python -m build --sdist --wheel --outdir dist/ .
   where every expected value can be traced back to the input data.
   Structural/smoke tests on larger datasets are fine as a complement,
   but the correctness backbone should be exact-value tests.
+- **Drop `# pragma: no cover` when you add tests.** Pragmas are for
+  code that genuinely can't be exercised (platform-specific branches,
+  defensive `raise` after exhaustive `if/elif`). Once a method has a
+  test, the pragma is stale and misleading — remove it in the same PR
+  that adds the test.
 
 ### Notebooks and reports
 - Notebooks for docs should be empty/not pre-run.
@@ -348,6 +386,44 @@ documentation of its defaults. A frozen-dataclass of defaults is
 an engine/enterprise pattern, not a fit for a lightweight analysis
 package.
 
+### Namespace facade for large analyzer classes
+For any class that grows beyond ~20 public methods, split related
+methods into sub-namespace classes attached as instance attributes.
+`ADMDatamart` is the reference: `dm.plot`, `dm.aggregates`, `dm.agb`,
+`dm.generate`, `dm.bin_aggregator`. Each sub-namespace:
+
+- Lives in its own module (`adm/Plots.py`, `adm/Aggregates.py`, …).
+- Takes a single parent argument named **`datamart`** (or the
+  equivalent name used by the parent class) and stores it as
+  `self.datamart`.
+- Uses `if TYPE_CHECKING: from .Parent import Parent` to avoid
+  circular imports for the back-reference.
+- Is instantiated in the parent's `__init__` and assigned to a
+  short, dot-completion-friendly attribute (`self.plot = Plots(self)`).
+
+This keeps the public API discoverable (one class to import; dot
+completion reveals everything) without ballooning the parent into a
+multi-thousand-line god class. Use the same pattern when refactoring
+existing fat classes — don't invent a new convention.
+
+### I/O lives in classmethods, not `__init__`
+Keep `__init__` pure: it should only accept already-loaded data
+structures (typically `pl.LazyFrame`s) and configuration. All file,
+network, and S3 I/O lives in alternative constructors named
+`from_<source>` (e.g. `from_ds_export`, `from_s3`,
+`from_dataflow_export`, `from_pdc`). This mirrors the
+`pl.read_csv` / `pl.scan_csv` idiom and makes the class trivially
+testable with synthesized data — no monkey-patching required.
+
+### `return_df` parameter on plot methods
+Every public method that produces a chart should accept
+`return_df: bool = False` as a keyword-only argument. When `True`,
+return the underlying (Lazy)Frame that drives the chart instead of
+the figure. This pattern (used consistently across `ADMDatamart.plot`)
+makes plots scriptable, testable, and composable without forcing
+users to re-derive the aggregation. Pair with `@overload` so type
+checkers know which return shape applies.
+
 ## Feature backlog / TODO files
 
 Major features maintain a living TODO file in `docs/plans/` (e.g.
@@ -386,6 +462,41 @@ Use the right venue for the right kind of note:
 - **Don't park lists of TODOs at the top of a file/page.** Lift them
   into the relevant plan file and replace the block with a single
   pointer comment.
+
+## Surfacing follow-up work
+
+When a conversation or refactor uncovers something that won't be
+addressed in the current PR, *don't let it evaporate*. Pick the right
+venue and either file it or hand the user a draft they can file:
+
+- **GitHub issue** for anything other contributors should see and pick
+  up: bugs, missing features, design questions, promotion candidates
+  from prototype → product. Agents typically can't `gh issue create`
+  on this repo (EMU restrictions) — write a ready-to-paste draft
+  (title + body in markdown) and hand it to the user. Keep one issue
+  per concern, not omnibus dumps.
+- **Plan-file entry** (`docs/plans/<feature>-TODO.md`) for backlog
+  items scoped to a specific feature area that aren't substantial
+  enough to be their own issue, or that need design work before they
+  can be filed.
+- **Inline `# TODO`** for code-local hints (see "Inline `# TODO` vs
+  plan-file entries" below).
+
+Triggers to raise follow-ups proactively:
+- A "we should also…" or "while we're here…" thought that's out of
+  scope for the current PR.
+- A bug discovered that *isn't* tightly coupled to the current change
+  (the coupled ones get fixed in-PR — see "Stay focused" in critical
+  rules).
+- A `# type: ignore`, defensive `isinstance` branch, or `# pragma: no
+  cover` you can't justify removing in the current PR.
+- Repeated workarounds across multiple files that point to a missing
+  abstraction.
+- Prototype code that has matured enough to belong in `pdstools` proper.
+
+Default to nudging the user: *"This is out of scope for the current
+PR — want me to draft an issue?"* — better one too many drafts than a
+silently-dropped follow-up.
 
 ## Contrib and workflow notes
 - Main tests are `python/tests`; CI runs multi-OS and multi-Python.
