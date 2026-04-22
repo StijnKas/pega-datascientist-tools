@@ -1,0 +1,832 @@
+pdstools.utils.report_utils
+===========================
+
+.. py:module:: pdstools.utils.report_utils
+
+.. autoapi-nested-parse::
+
+   Helpers for generating Quarto-based pdstools reports.
+
+   This package preserves the public surface of the previous ``report_utils``
+   module while splitting the implementation across several focused private
+   submodules:
+
+   * ``_common`` — shared module-level state (logger).
+   * ``_filenames`` — output filename composition and report-resource copying.
+   * ``_quarto`` — Quarto execution: rendering, command-line wrappers,
+     Quarto/Pandoc version detection, callouts, and the ``show_credits`` block.
+   * ``_html`` — HTML post-processing: CSS inlining, zip bundling of Quarto
+     resource folders, and report error scanning.
+   * ``_tables`` — RAG-coloured metric tables (``itables`` and ``great_tables``).
+   * ``_polars_helpers`` — small Polars helpers and aggregations used by
+     Quarto report templates (gains table, hierarchy summarisations, etc.).
+   * ``_query`` — serialise/deserialise pdstools ``QUERY`` objects so they can
+     travel through Quarto YAML parameters.
+
+   Submodule names are underscore-prefixed; only this ``__init__`` is the
+   supported import surface. Imports such as
+   ``from pdstools.utils.report_utils import quarto_render_to_html`` continue
+   to resolve unchanged.
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /autoapi/pdstools/utils/report_utils/_common/index
+   /autoapi/pdstools/utils/report_utils/_filenames/index
+   /autoapi/pdstools/utils/report_utils/_html/index
+   /autoapi/pdstools/utils/report_utils/_polars_helpers/index
+   /autoapi/pdstools/utils/report_utils/_quarto/index
+   /autoapi/pdstools/utils/report_utils/_query/index
+   /autoapi/pdstools/utils/report_utils/_tables/index
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   pdstools.utils.report_utils.QUERY
+   pdstools.utils.report_utils.logger
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.utils.report_utils.MetricFormats
+   pdstools.utils.report_utils.MetricLimits
+   pdstools.utils.report_utils.NumberFormat
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.utils.report_utils.exclusive_0_1_range_rag
+   pdstools.utils.report_utils.positive_values
+   pdstools.utils.report_utils.standard_NBAD_channels_rag
+   pdstools.utils.report_utils.standard_NBAD_configurations_rag
+   pdstools.utils.report_utils.standard_NBAD_directions_rag
+   pdstools.utils.report_utils.standard_NBAD_predictions_rag
+   pdstools.utils.report_utils.strict_positive_values
+   pdstools.utils.report_utils.copy_quarto_file
+   pdstools.utils.report_utils.copy_report_resources
+   pdstools.utils.report_utils.get_output_filename
+   pdstools.utils.report_utils.bundle_quarto_resources
+   pdstools.utils.report_utils.check_report_for_errors
+   pdstools.utils.report_utils.generate_zipped_report
+   pdstools.utils.report_utils.avg_by_hierarchy
+   pdstools.utils.report_utils.gains_table
+   pdstools.utils.report_utils.max_by_hierarchy
+   pdstools.utils.report_utils.n_unique_values
+   pdstools.utils.report_utils.polars_col_exists
+   pdstools.utils.report_utils.polars_subset_to_existing_cols
+   pdstools.utils.report_utils.sample_values
+   pdstools.utils.report_utils.get_pandoc_with_version
+   pdstools.utils.report_utils.get_quarto_with_version
+   pdstools.utils.report_utils.quarto_callout_important
+   pdstools.utils.report_utils.quarto_callout_info
+   pdstools.utils.report_utils.quarto_callout_no_prediction_data_warning
+   pdstools.utils.report_utils.quarto_callout_no_predictor_data_warning
+   pdstools.utils.report_utils.quarto_plot_exception
+   pdstools.utils.report_utils.quarto_print
+   pdstools.utils.report_utils.run_quarto
+   pdstools.utils.report_utils.show_credits
+   pdstools.utils.report_utils.deserialize_query
+   pdstools.utils.report_utils.serialize_query
+   pdstools.utils.report_utils.create_metric_gttable
+   pdstools.utils.report_utils.create_metric_itable
+
+
+Package Contents
+----------------
+
+.. py:type:: QUERY
+   :canonical: pl.Expr | Iterable[pl.Expr] | dict[str, list]
+
+
+.. py:class:: MetricFormats
+
+   Registry of predefined number formats for common metrics.
+
+   Provides centralized format definitions for use across table rendering
+   backends (great_tables, itables, etc.).
+
+   .. rubric:: Examples
+
+   >>> MetricFormats.get("ModelPerformance").format_value(0.875)
+   '0.88'
+   >>> MetricFormats.has_format("CTR")
+   True
+   >>> MetricFormats.register("Custom", NumberFormat(decimals=4))
+
+
+   .. py:attribute:: _FORMATS
+      :type:  dict[str, pdstools.utils.number_format.NumberFormat]
+
+
+   .. py:attribute:: DEFAULT_FORMAT
+
+
+   .. py:method:: get(metric_id: str) -> pdstools.utils.number_format.NumberFormat | None
+      :classmethod:
+
+
+      Get format for a metric, or None if not defined.
+
+
+
+   .. py:method:: get_or_default(metric_id: str) -> pdstools.utils.number_format.NumberFormat
+      :classmethod:
+
+
+      Get format for a metric, falling back to DEFAULT_FORMAT.
+
+
+
+   .. py:method:: has_format(metric_id: str) -> bool
+      :classmethod:
+
+
+      Check if a metric has a defined format.
+
+
+
+   .. py:method:: list_metrics() -> list[str]
+      :classmethod:
+
+
+      List all metric IDs with defined formats.
+
+
+
+   .. py:method:: register(metric_id: str, format_spec: pdstools.utils.number_format.NumberFormat) -> None
+      :classmethod:
+
+
+      Register a custom format for a metric.
+
+
+
+   .. py:method:: all_formats() -> dict[str, pdstools.utils.number_format.NumberFormat]
+      :classmethod:
+
+
+      Get a copy of all defined metric formats.
+
+
+
+.. py:class:: MetricLimits
+
+   Singleton for accessing metric limits from MetricLimits.csv.
+
+
+   .. py:attribute:: _instance
+      :type:  MetricLimits | None
+      :value: None
+
+
+
+   .. py:attribute:: _limits_df
+      :type:  polars.DataFrame | None
+
+
+   .. py:method:: get_limits() -> polars.DataFrame
+      :classmethod:
+
+
+      Get all metric limits as a DataFrame.
+
+      Cached on the singleton instance via ``__new__``; the first call
+      loads + builds the DataFrame, subsequent calls reuse the cached
+      attribute.
+
+      The CSV contains numeric values directly. Boolean metrics are detected
+      by checking if all defined limit values are either 0.0 or 1.0.
+
+
+
+   .. py:method:: get_limit_for_metric(metric_id: str) -> dict
+      :classmethod:
+
+
+      Get limits for a specific metric. Returns empty dict if not found.
+
+
+
+   .. py:method:: _get_limit_or_raise(metric_id: str) -> dict
+      :classmethod:
+
+
+      Get limits for a metric, raising KeyError if not found.
+
+
+
+   .. py:method:: minimum(metric_id: str) -> float | None
+      :classmethod:
+
+
+      Get the minimum (hard limit) for a metric.
+
+      Raises KeyError if metric_id is not found in MetricLimits.csv.
+
+
+
+   .. py:method:: maximum(metric_id: str) -> float | None
+      :classmethod:
+
+
+      Get the maximum (hard limit) for a metric.
+
+      Raises KeyError if metric_id is not found in MetricLimits.csv.
+
+
+
+   .. py:method:: best_practice_min(metric_id: str) -> float | bool | None
+      :classmethod:
+
+
+      Get the best practice minimum for a metric.
+
+      Raises KeyError if metric_id is not found in MetricLimits.csv.
+
+
+
+   .. py:method:: best_practice_max(metric_id: str) -> float | bool | None
+      :classmethod:
+
+
+      Get the best practice maximum for a metric.
+
+      Raises KeyError if metric_id is not found in MetricLimits.csv.
+
+
+
+   .. py:method:: evaluate_metric_rag(metric_id: str, value) -> RAGValue | None
+      :classmethod:
+
+
+      Evaluate RAG status for a metric value.
+
+      :param metric_id: The metric identifier from MetricLimits.csv.
+      :type metric_id: str
+      :param value: The value to evaluate (numeric or boolean).
+      :type value: Any
+
+      :returns: "RED", "AMBER", "GREEN", or None if metric not found or value is None.
+      :rtype: RAGValue | None
+
+      :raises TypeError: If the value is not a valid type for the metric (e.g., string instead of numeric).
+
+      .. rubric:: Notes
+
+      For boolean metrics:
+      - If TRUE is in Minimum or Maximum (hard limit): TRUE → GREEN, FALSE → RED
+      - If TRUE is in Best Practice Min or Max (soft limit): TRUE → GREEN, FALSE → AMBER
+
+
+
+   .. py:method:: get_metric_RAG_code(column: str, metric_id: str) -> polars.Expr
+      :classmethod:
+
+
+      Generate a Polars expression that evaluates metric status as RED/AMBER/GREEN.
+
+      Uses evaluate_metric_rag internally via map_elements to ensure consistent
+      RAG logic between Python and Polars approaches.
+
+
+
+.. py:function:: exclusive_0_1_range_rag(value: float) -> RAGValue | None
+
+   RAG for percentage values. GREEN if 0 < value < 1, RED otherwise.
+
+
+.. py:function:: positive_values(value: float) -> RAGValue | None
+
+.. py:function:: standard_NBAD_channels_rag(value: str) -> RAGValue | None
+
+   RAG status for NBAD channel names.
+
+   Returns GREEN for standard channels, YELLOW for Other, AMBER for multi-channel/unknown.
+
+
+.. py:function:: standard_NBAD_configurations_rag(value: str) -> RAGValue | None
+
+   RAG status for NBAD configuration names.
+
+   Returns AMBER if any is a default/other/multi-channel or a non-standard configuration,
+   GREEN if all are standard single-channel configurations.
+
+
+.. py:function:: standard_NBAD_directions_rag(value: str) -> RAGValue | None
+
+   RAG status for NBAD direction names. GREEN for Inbound/Outbound, AMBER otherwise.
+
+
+.. py:function:: standard_NBAD_predictions_rag(value: str) -> RAGValue | None
+
+   RAG status for NBAD prediction names.
+
+   Returns GREEN for single-channel, YELLOW for multi-channel, AMBER for unknown.
+
+
+.. py:function:: strict_positive_values(value: float) -> RAGValue | None
+
+.. py:class:: NumberFormat
+
+   Specification for formatting numeric values.
+
+   Inspired by great_tables' `fmt_number`, this immutable class defines
+   formatting options that translate to multiple output targets.
+
+   :param decimals: Number of decimal places.
+   :type decimals: int, default 0
+   :param scale_by: Multiplier applied before formatting (use 100 for percentages).
+   :type scale_by: float, default 1.0
+   :param compact: Use compact notation (K, M, B, T).
+   :type compact: bool, default False
+   :param locale: Locale for separators. Supports "en_US" and "de_DE".
+   :type locale: str, default "en_US"
+   :param suffix: String appended after the number (e.g., "%").
+   :type suffix: str, default ""
+
+   .. rubric:: Examples
+
+   >>> NumberFormat(decimals=2).format_value(1234.567)
+   '1,234.57'
+
+   >>> NumberFormat(decimals=1, scale_by=100, suffix="%").format_value(0.1234)
+   '12.3%'
+
+   >>> NumberFormat(compact=True).format_value(1234567)
+   '1M'
+
+
+   .. py:attribute:: decimals
+      :type:  int
+      :value: 0
+
+
+
+   .. py:attribute:: scale_by
+      :type:  float
+      :value: 1.0
+
+
+
+   .. py:attribute:: compact
+      :type:  bool
+      :value: False
+
+
+
+   .. py:attribute:: locale
+      :type:  str
+      :value: 'en_US'
+
+
+
+   .. py:attribute:: suffix
+      :type:  str
+      :value: ''
+
+
+
+   .. py:method:: format_value(value: NumericValue) -> str
+
+      Format a single numeric value.
+
+      :param value: The value to format. Returns "" for None or NaN.
+
+      :returns: Formatted string representation.
+      :rtype: str
+
+
+
+   .. py:method:: _format_standard(num: float) -> str
+
+      Format with locale-aware thousand/decimal separators.
+
+
+
+   .. py:method:: _format_compact(num: float) -> str
+
+      Format in compact notation (K/M/B/T).
+
+
+
+   .. py:method:: to_pandas_format() -> str | collections.abc.Callable[[NumericValue], str]
+
+      Convert to pandas Styler format specification.
+
+      :returns: Format string or callable for `pandas.Styler.format()`.
+      :rtype: str or callable
+
+
+
+   .. py:method:: apply_to_gt(gt: great_tables.GT, columns: list[str]) -> great_tables.GT
+
+      Apply formatting to a great_tables GT object.
+
+      :param gt: The GT object to format.
+      :param columns: Column names to apply formatting to.
+
+      :returns: The GT object with formatting applied.
+      :rtype: GT
+
+
+
+   .. py:method:: to_polars_expr(column: str) -> polars.Expr
+
+      Create a Polars expression that formats a column as strings.
+
+      :param column: Column name to format.
+
+      :returns: Expression producing formatted string values.
+      :rtype: pl.Expr
+
+
+
+   .. py:method:: format_polars_column(df: polars.DataFrame, column: str, output_column: str | None = None) -> polars.DataFrame
+
+      Add a formatted string column to a DataFrame.
+
+      :param df: Source DataFrame.
+      :param column: Column to format.
+      :param output_column: Name for the formatted column. Defaults to "{column}_formatted".
+
+      :returns: DataFrame with the formatted column added.
+      :rtype: pl.DataFrame
+
+
+
+.. py:data:: logger
+
+.. py:function:: copy_quarto_file(qmd_file: str, temp_dir: pathlib.Path) -> None
+
+   Copy the report quarto file to the temporary directory.
+
+   :param qmd_file: Name of the Quarto markdown file to copy
+   :type qmd_file: str
+   :param temp_dir: Destination directory to copy files to
+   :type temp_dir: Path
+
+   :rtype: None
+
+
+.. py:function:: copy_report_resources(resource_dict: list[tuple[str, str]])
+
+   Copy report resources from the reports directory to specified destinations.
+
+   :param resource_dict: list of tuples containing (source_path, destination_path) pairs
+   :type resource_dict: list[tuple[str, str]]
+
+   :rtype: None
+
+
+.. py:function:: get_output_filename(name: str | None, report_type: str, model_id: str | None = None, output_type: str = 'html') -> str
+
+   Generate the output filename based on the report parameters.
+
+   If ``name`` already ends with ``.{output_type}`` (case-insensitive), it
+   is treated as a full filename and returned verbatim (after replacing
+   spaces with underscores). Otherwise the filename is composed from
+   ``report_type``, ``name``, and ``model_id`` with the extension appended.
+
+
+.. py:function:: bundle_quarto_resources(output_path: pathlib.Path) -> pathlib.Path
+
+   Bundle a Quarto-rendered file with its resources folder into a zip.
+
+   When Quarto renders an HTML report without ``embed-resources``, it emits
+   the HTML alongside a ``<basename>_files/`` directory containing the
+   JavaScript and CSS assets the report needs. This helper detects that
+   pattern and wraps both into a single ``<basename>.zip`` archive so the
+   report can be distributed and unpacked as one unit.
+
+   If no companion resources folder exists next to ``output_path`` (e.g. the
+   report was fully embedded, or the format doesn't produce resources), the
+   function is a no-op and returns ``output_path`` unchanged.
+
+   :param output_path: Path to the rendered report file (typically an HTML file). The
+                       companion resources folder is expected at ``<output_path stem>_files``
+                       in the same directory.
+   :type output_path: Path
+
+   :returns: Path to the zip archive when bundling occurred, otherwise the
+             original ``output_path``.
+   :rtype: Path
+
+
+.. py:function:: check_report_for_errors(html_path: str | pathlib.Path) -> list[str]
+
+   Check generated report HTML for error indicators.
+
+   Scans the HTML file for error patterns that indicate plot rendering failures
+   or exceptions during report generation. These errors are typically hidden in
+   collapsed callout sections but should be caught in testing.
+
+   :param html_path: Path to the HTML file to check
+   :type html_path: str or Path
+
+   :returns: List of error descriptions found (empty if no errors)
+   :rtype: list[str]
+
+   :raises FileNotFoundError: If the HTML file does not exist
+
+   .. rubric:: Examples
+
+   >>> from pdstools.utils.report_utils import check_report_for_errors
+   >>> errors = check_report_for_errors("HealthCheck.html")
+   >>> if errors:
+   ...     print(f"Found {len(errors)} error(s):")
+   ...     for error in errors:
+   ...         print(f"  - {error}")
+
+
+.. py:function:: generate_zipped_report(output_filename: str, folder_to_zip: str)
+
+   Generate a zipped archive of a directory.
+
+   This is a general-purpose utility function that can compress any directory
+   into a zip archive. While named for report generation, it works with any
+   directory structure.
+
+   :param output_filename: Name of the output file (extension will be replaced with .zip)
+   :type output_filename: str
+   :param folder_to_zip: Path to the directory to be compressed
+   :type folder_to_zip: str
+
+   :rtype: None
+
+   :raises FileNotFoundError: If the folder to zip does not exist or is not a directory
+
+   .. rubric:: Examples
+
+   >>> generate_zipped_report("my_archive.zip", "/path/to/directory")
+   >>> generate_zipped_report("report_2023", "/tmp/report_output")
+
+
+.. py:function:: avg_by_hierarchy(dm, all_dm_cols, fld, grouping)
+
+.. py:function:: gains_table(df: polars.LazyFrame | polars.DataFrame, value: str, index: str | None = None, by: str | list[str] | None = None) -> polars.DataFrame
+
+   Calculate cumulative gains for visualization.
+
+   Computes cumulative distribution of a value metric, sorted by the ratio
+   of value to index (or by value alone if no index). Used for gains charts
+   to show model response skewness.
+
+   :param df: Input data containing the value and optional index columns
+   :type df: pl.LazyFrame | pl.DataFrame
+   :param value: Column name containing the metric to compute gains for (e.g., "ResponseCount")
+   :type value: str
+   :param index: Column name to normalize by (e.g., population size). If None, uses row count.
+   :type index: str, optional
+   :param by: Column(s) to group by for separate gain curves. If None, computes single curve.
+   :type by: str | list[str], optional
+
+   :returns: DataFrame with columns:
+             - cum_x: Cumulative proportion of index (or models)
+             - cum_y: Cumulative proportion of value
+             - by columns: if `by` is specified
+   :rtype: pl.DataFrame
+
+   .. rubric:: Examples
+
+   >>> # Single gains curve for response count
+   >>> gains = gains_table(df, value="ResponseCount")
+
+   >>> # Gains curves by channel, normalized by population
+   >>> gains = gains_table(df, value="Positives", index="Population", by="Channel")
+
+
+.. py:function:: max_by_hierarchy(dm, all_dm_cols, fld, grouping)
+
+.. py:function:: n_unique_values(dm, all_dm_cols, fld)
+
+.. py:function:: polars_col_exists(df, col)
+
+.. py:function:: polars_subset_to_existing_cols(all_columns, cols)
+
+.. py:function:: sample_values(dm, all_dm_cols, fld, n=6)
+
+.. py:function:: get_pandoc_with_version() -> tuple[pathlib.Path, str]
+
+   Get Pandoc executable path and version.
+
+
+.. py:function:: get_quarto_with_version() -> tuple[pathlib.Path, str]
+
+   Get Quarto executable path and version.
+
+
+.. py:function:: quarto_callout_important(info)
+
+.. py:function:: quarto_callout_info(info)
+
+.. py:function:: quarto_callout_no_prediction_data_warning(extra='')
+
+.. py:function:: quarto_callout_no_predictor_data_warning(extra='')
+
+.. py:function:: quarto_plot_exception(plot_name: str, e: Exception)
+
+.. py:function:: quarto_print(text)
+
+.. py:function:: run_quarto(qmd_file: str | None = None, output_filename: str | None = None, output_type: str | None = 'html', params: dict | None = None, project: dict = {'type': 'default'}, analysis: dict | None = None, temp_dir: pathlib.Path = Path(), *, full_embed: bool = False) -> int
+
+   Run the Quarto command to generate the report.
+
+   :param qmd_file: Path to the Quarto markdown file to render, by default None
+   :type qmd_file: str, optional
+   :param output_filename: Name of the output file, by default None
+   :type output_filename: str, optional
+   :param output_type: Type of output format (html, pdf, etc.), by default "html"
+   :type output_type: str, optional
+   :param params: Parameters to pass to Quarto execution, by default None
+   :type params: dict, optional
+   :param project: Project configuration settings, by default {"type": "default"}
+   :type project: dict, optional
+   :param analysis: Analysis configuration settings, by default None
+   :type analysis: dict, optional
+   :param temp_dir: Temporary directory for processing, by default Path(".")
+   :type temp_dir: Path, optional
+   :param full_embed: When True, fully embeds all JavaScript libraries (Plotly, itables,
+                      etc.) into the HTML output (larger file).
+                      When False, loads JavaScript libraries from CDN and skips esbuild
+                      bundling, avoiding the need for esbuild (see issue #620).
+   :type full_embed: bool, default=False
+
+   :returns: Return code from the Quarto process (0 for success)
+   :rtype: int
+
+   :raises RuntimeError: If the Quarto process fails (non-zero return code), includes captured output
+   :raises subprocess.SubprocessError: If the Quarto command fails to execute
+   :raises FileNotFoundError: If required files are not found
+
+
+.. py:function:: show_credits(quarto_source: str | None = None)
+
+   Display a credits section with build metadata at the end of a report.
+
+   Prints a formatted block containing the generation timestamp, Quarto and
+   Pandoc versions, and optionally the source notebook path.
+
+   :param quarto_source: Path or identifier of the source .qmd file. Include this for
+                         standalone reports where knowing the source is useful. Omit for
+                         Quarto website projects where pages are generated from templates.
+   :type quarto_source: str, optional
+
+
+.. py:function:: deserialize_query(serialized_query: dict | None) -> pdstools.utils.types.QUERY | None
+
+   Deserialize a query that was previously serialized with serialize_query.
+
+   :param serialized_query: A serialized query dictionary created by serialize_query
+   :type serialized_query: dict | None
+
+   :returns: The deserialized query
+   :rtype: QUERY | None
+
+
+.. py:function:: serialize_query(query: pdstools.utils.types.QUERY | None) -> dict | None
+
+.. py:function:: create_metric_gttable(source_table: polars.DataFrame, title: str | None = None, subtitle: str | None = None, column_to_metric: dict | None = None, column_descriptions: dict[str, str] | None = None, color_background: bool = True, strict_metric_validation: bool = True, highlight_issues_only: bool = True, **gt_kwargs)
+
+   Create a great_tables table with RAG coloring for metric columns.
+
+   Displays the table using great_tables with cells colored based on RAG
+   (Red/Amber/Green) status derived from metric thresholds.
+
+   :param source_table: DataFrame containing data columns to be colored.
+   :type source_table: pl.DataFrame
+   :param title: Table title.
+   :type title: str, optional
+   :param subtitle: Table subtitle.
+   :type subtitle: str, optional
+   :param column_to_metric: Mapping from column names (or tuples of column names) to one of:
+
+                            - **str**: metric ID to look up in MetricLimits.csv
+                            - **callable**: function(value) -> "RED"|"AMBER"|"YELLOW"|"GREEN"|None
+                            - **tuple**: (metric_id, value_mapping) where value_mapping is a dict
+                              that maps column values to metric values before evaluation.
+                              Supports tuple keys for multiple values: {("Yes", "yes"): True}
+
+                            If a column is not in this dict, its name is used as the metric ID.
+   :type column_to_metric: dict, optional
+   :param column_descriptions: Mapping from column names to tooltip descriptions. When provided,
+                               column headers will display the description as a tooltip on hover.
+                               Example: {"Performance": "Model AUC performance metric"}
+   :type column_descriptions: dict, optional
+   :param color_background: If True, colors the cell background. If False, colors the text.
+   :type color_background: bool, default True
+   :param strict_metric_validation: If True, raises an exception if a metric ID in column_to_metric
+                                    is not found in MetricLimits.csv. Set to False to skip validation.
+   :type strict_metric_validation: bool, default True
+   :param highlight_issues_only: If True, only RED/AMBER/YELLOW values are styled (GREEN is not highlighted).
+                                 Set to False to also highlight GREEN values.
+   :type highlight_issues_only: bool, default True
+   :param \*\*gt_kwargs: Additional keyword arguments passed to great_tables.GT constructor.
+                         Common options include: rowname_col, groupname_col.
+
+   :returns: A great_tables instance with RAG coloring applied.
+   :rtype: great_tables.GT
+
+   .. rubric:: Examples
+
+   >>> from pdstools.utils.report_utils import create_metric_gttable
+   >>> create_metric_gttable(
+   ...     df,
+   ...     title="Model Overview",
+   ...     column_to_metric={
+   ...         # Simple metric ID
+   ...         "Performance": "ModelPerformance",
+   ...         # Custom RAG function
+   ...         "Channel": standard_NBAD_channels_rag,
+   ...         # Value mapping: column values -> metric values
+   ...         "AGB": ("UsingAGB", {"Yes": True, "No": False}),
+   ...         # Multiple column values to same metric value
+   ...         "AGB": ("UsingAGB", {("Yes", "yes", "YES"): True, "No": False}),
+   ...     },
+   ...     column_descriptions={
+   ...         "Performance": "Model AUC performance metric",
+   ...         "Channel": "Communication channel for the action",
+   ...     },
+   ...     rowname_col="Name",
+   ... )
+
+
+.. py:function:: create_metric_itable(source_table: polars.DataFrame, column_to_metric: dict | None = None, column_descriptions: dict[str, str] | None = None, color_background: bool = False, strict_metric_validation: bool = True, highlight_issues_only: bool = False, rag_source: polars.DataFrame | None = None, **itable_kwargs)
+
+   Create an interactive table with RAG coloring for metric columns.
+
+   Displays the table using itables with cells colored based on RAG
+   (Red/Amber/Green) status derived from metric thresholds.
+
+   :param source_table: DataFrame containing data columns to be colored.
+   :type source_table: pl.DataFrame
+   :param column_to_metric: Mapping from column names (or tuples of column names) to one of:
+
+                            - **str**: metric ID to look up in MetricLimits.csv
+                            - **callable**: function(value) -> "RED"|"AMBER"|"YELLOW"|"GREEN"|None
+                            - **tuple**: (metric_id, value_mapping) where value_mapping is a dict
+                              that maps column values to metric values before evaluation.
+                              Supports tuple keys for multiple values: {("Yes", "yes"): True}
+
+                            If a column is not in this dict, its name is used as the metric ID.
+   :type column_to_metric: dict, optional
+   :param column_descriptions: Mapping from column names to tooltip descriptions. When provided,
+                               column headers will display the description as a tooltip on hover.
+                               Example: {"Performance": "Model AUC performance metric"}
+   :type column_descriptions: dict, optional
+   :param color_background: If True, colors the cell background. If False, colors the text (foreground).
+   :type color_background: bool, default False
+   :param strict_metric_validation: If True, raises an exception if a metric ID in column_to_metric
+                                    is not found in MetricLimits.csv. Set to False to skip validation.
+   :type strict_metric_validation: bool, default True
+   :param highlight_issues_only: If True, only RED/AMBER/YELLOW values are styled (GREEN is not highlighted).
+                                 Set to False to also highlight GREEN values.
+   :type highlight_issues_only: bool, default False
+   :param rag_source: If provided, RAG thresholds are evaluated against this DataFrame
+                      instead of ``source_table``. Use this when ``source_table`` contains
+                      non-numeric display values (e.g. HTML strings) but you still want
+                      RAG coloring based on the original numeric data. Must have the same
+                      columns and row order as ``source_table``.
+   :type rag_source: pl.DataFrame, optional
+   :param \*\*itable_kwargs: Additional keyword arguments passed to itables.show().
+                             Common options include: lengthMenu, paging, searching, ordering.
+
+   :returns: An itables display object that will render in Jupyter/Quarto.
+   :rtype: itables HTML display
+
+   .. rubric:: Examples
+
+   >>> from pdstools.utils.report_utils import create_metric_itable
+   >>> create_metric_itable(
+   ...     df,
+   ...     column_to_metric={
+   ...         # Simple metric ID
+   ...         "Performance": "ModelPerformance",
+   ...         # Custom RAG function
+   ...         "Channel": standard_NBAD_channels_rag,
+   ...         # Value mapping: column values -> metric values
+   ...         "AGB": ("UsingAGB", {"Yes": True, "No": False}),
+   ...         # Multiple column values to same metric value
+   ...         "AGB": ("UsingAGB", {("Yes", "yes", "YES"): True, "No": False}),
+   ...     },
+   ...     column_descriptions={
+   ...         "Performance": "Model AUC performance metric",
+   ...         "Channel": "Communication channel for the action",
+   ...     },
+   ...     paging=False
+   ... )
+
+

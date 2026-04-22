@@ -1,0 +1,312 @@
+pdstools.utils.cdh_utils._metrics
+=================================
+
+.. py:module:: pdstools.utils.cdh_utils._metrics
+
+.. autoapi-nested-parse::
+
+   Performance metrics: AUC, lift, log-odds, gains, feature importance.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.utils.cdh_utils._metrics.safe_range_auc
+   pdstools.utils.cdh_utils._metrics.auc_from_probs
+   pdstools.utils.cdh_utils._metrics.auc_from_bincounts
+   pdstools.utils.cdh_utils._metrics.aucpr_from_probs
+   pdstools.utils.cdh_utils._metrics.aucpr_from_bincounts
+   pdstools.utils.cdh_utils._metrics.auc_to_gini
+   pdstools.utils.cdh_utils._metrics.z_ratio
+   pdstools.utils.cdh_utils._metrics.lift
+   pdstools.utils.cdh_utils._metrics.bin_log_odds
+   pdstools.utils.cdh_utils._metrics.log_odds_polars
+   pdstools.utils.cdh_utils._metrics.feature_importance
+   pdstools.utils.cdh_utils._metrics.gains_table
+
+
+Module Contents
+---------------
+
+.. py:function:: safe_range_auc(auc: float) -> float
+
+   Internal helper to keep auc a safe number between 0.5 and 1.0 always.
+
+   :param auc: The AUC (Area Under the Curve) score
+   :type auc: float
+
+   :returns: 'Safe' AUC score, between 0.5 and 1.0
+   :rtype: float
+
+
+.. py:function:: auc_from_probs(groundtruth: list[int], probs: list[float]) -> float
+
+   Calculates AUC from an array of truth values and predictions.
+   Calculates the area under the ROC curve from an array of truth values and
+   predictions, making sure to always return a value between 0.5 and 1.0 and
+   returns 0.5 when there is just one groundtruth label.
+
+   :param groundtruth: The 'true' values, Positive values must be represented as
+                       True or 1. Negative values must be represented as False or 0.
+   :type groundtruth: list[int]
+   :param probs: The predictions, as a numeric vector of the same length as groundtruth
+   :type probs: list[float]
+   :param Returns: The AUC as a value between 0.5 and 1.
+   :type Returns: float
+
+   .. rubric:: Examples
+
+   >>> auc_from_probs( [1,1,0], [0.6,0.2,0.2])
+
+
+.. py:function:: auc_from_bincounts(pos: collections.abc.Sequence[int] | polars.Series, neg: collections.abc.Sequence[int] | polars.Series, probs: collections.abc.Sequence[float] | polars.Series | None = None) -> float
+
+   Calculates AUC from counts of positives and negatives directly
+   This is an efficient calculation of the area under the ROC curve directly from an array of positives
+   and negatives. It makes sure to always return a value between 0.5 and 1.0
+   and will return 0.5 when there is just one groundtruth label.
+
+   :param pos: Vector with counts of the positive responses
+   :type pos: list[int]
+   :param neg: Vector with counts of the negative responses
+   :type neg: list[int]
+   :param probs: Optional list with probabilities which will be used to set the order of the bins. If missing defaults to pos/(pos+neg).
+   :type probs: list[float]
+
+   :returns: The AUC as a value between 0.5 and 1.
+   :rtype: float
+
+   .. rubric:: Examples
+
+   >>> auc_from_bincounts([3,1,0], [2,0,1])
+
+
+.. py:function:: aucpr_from_probs(groundtruth: list[int], probs: list[float]) -> float
+
+   Calculates PR AUC (precision-recall) from an array of truth values and predictions.
+   Calculates the area under the PR curve from an array of truth values and
+   predictions. Returns 0.0 when there is just one groundtruth label.
+
+   :param groundtruth: The 'true' values, Positive values must be represented as
+                       True or 1. Negative values must be represented as False or 0.
+   :type groundtruth: list[int]
+   :param probs: The predictions, as a numeric vector of the same length as groundtruth
+   :type probs: list[float]
+   :param Returns: The AUC as a value between 0.5 and 1.
+   :type Returns: float
+
+   .. rubric:: Examples
+
+   >>> auc_from_probs( [1,1,0], [0.6,0.2,0.2])
+
+
+.. py:function:: aucpr_from_bincounts(pos: collections.abc.Sequence[int] | polars.Series, neg: collections.abc.Sequence[int] | polars.Series, probs: collections.abc.Sequence[float] | polars.Series | None = None) -> float
+
+   Calculates PR AUC (precision-recall) from counts of positives and negatives directly.
+   This is an efficient calculation of the area under the PR curve directly from an
+   array of positives and negatives. Returns 0.0 when there is just one
+   groundtruth label.
+
+   :param pos: Vector with counts of the positive responses
+   :type pos: list[int]
+   :param neg: Vector with counts of the negative responses
+   :type neg: list[int]
+   :param probs: Optional list with probabilities which will be used to set the order of the bins. If missing defaults to pos/(pos+neg).
+   :type probs: list[float]
+
+   :returns: The PR AUC as a value between 0.0 and 1.
+   :rtype: float
+
+   .. rubric:: Examples
+
+   >>> aucpr_from_bincounts([3,1,0], [2,0,1])
+
+
+.. py:function:: auc_to_gini(auc: float) -> float
+
+   Convert AUC performance metric to GINI
+
+   :param auc: The AUC (number between 0.5 and 1)
+   :type auc: float
+
+   :returns: GINI metric, a number between 0 and 1
+   :rtype: float
+
+   .. rubric:: Examples
+
+   >>> auc2GINI(0.8232)
+
+
+.. py:function:: z_ratio(pos_col: str | polars.Expr = pl.col('BinPositives'), neg_col: str | polars.Expr = pl.col('BinNegatives')) -> polars.Expr
+
+   Calculates the Z-Ratio for predictor bins.
+
+   The Z-ratio is a measure of how the propensity in a bin differs from the average,
+   but takes into account the size of the bin and thus is statistically more relevant.
+   It represents the number of standard deviations from the avreage,
+   so centers around 0. The wider the spread, the better the predictor is.
+
+   To recreate the OOTB ZRatios from the datamart, use in a group_by.
+   See `examples`.
+
+   :param posCol: The (Polars) column of the bin positives
+   :type posCol: pl.Expr
+   :param negCol: The (Polars) column of the bin positives
+   :type negCol: pl.Expr
+
+   .. rubric:: Examples
+
+   >>> df.group_by(['ModelID', 'PredictorName']).agg([zRatio()]).explode()
+
+
+.. py:function:: lift(pos_col: str | polars.Expr = pl.col('BinPositives'), neg_col: str | polars.Expr = pl.col('BinNegatives')) -> polars.Expr
+
+   Calculates the Lift for predictor bins.
+
+   The Lift is the ratio of the propensity in a particular bin over the average
+   propensity. So a value of 1 is the average, larger than 1 means higher
+   propensity, smaller means lower propensity.
+
+   :param posCol: The (Polars) column of the bin positives
+   :type posCol: pl.Expr
+   :param negCol: The (Polars) column of the bin positives
+   :type negCol: pl.Expr
+
+   .. rubric:: Examples
+
+   >>> df.group_by(['ModelID', 'PredictorName']).agg([lift()]).explode()
+
+
+.. py:function:: bin_log_odds(bin_pos: list[float], bin_neg: list[float]) -> list[float]
+
+.. py:function:: log_odds_polars(positives: polars.Expr | str = pl.col('Positives'), negatives: polars.Expr | str = pl.col('ResponseCount') - pl.col('Positives')) -> polars.Expr
+
+   Calculate log odds per bin with correct Laplace smoothing.
+
+   Formula (per bin i in predictor p):
+       log(pos_i + 1/nBins) - log(sum(pos) + 1)
+       - [log(neg_i + 1/nBins) - log(sum(neg) + 1)]
+
+   Laplace smoothing uses 1/nBins where nBins is the number of bins
+   for that specific predictor. This matches the platform implementation
+   in GroupedPredictor.java.
+
+   Must be used with .over() to calculate nBins per predictor group:
+       .with_columns(log_odds_polars().over("PredictorName", "ModelID"))
+
+   :param positives: Column with positive response counts per bin
+   :type positives: pl.Expr or str
+   :param negatives: Column with negative response counts per bin
+   :type negatives: pl.Expr or str
+
+   :returns: Log odds expression (use with .over() for correct grouping)
+   :rtype: pl.Expr
+
+   .. seealso::
+
+      :py:obj:`feature_importance`
+          Calculate predictor importance from log odds
+      
+      :py:obj:`bin_log_odds`
+          Pure Python version (reference implementation)
+
+   .. rubric:: References
+
+   - ADM Explained: Log Odds calculation section
+   - Issue #263: https://github.com/pegasystems/pega-datascientist-tools/issues/263
+   - Platform: GroupedPredictor.java lines 603-606
+
+   .. rubric:: Examples
+
+   >>> # For propensity calculation in classifier
+   >>> df.with_columns(
+   ...     log_odds_polars(
+   ...         pl.col("BinPositives"),
+   ...         pl.col("BinNegatives")
+   ...     ).over("PredictorName", "ModelID")
+   ... )
+
+
+.. py:function:: feature_importance(over: list[str] | None = None, scaled: bool = True) -> polars.Expr
+
+   Calculate feature importance for Naive Bayes predictors.
+
+   Feature importance represents the weighted average of absolute log odds
+   values across all bins, weighted by bin response counts. This measures
+   how strongly the predictor differentiates between positive and negative
+   outcomes.
+
+   Algorithm (matches platform GroupedPredictor.calculatePredictorImportance()):
+   1. Calculate log odds per bin with Laplace smoothing (1/nBins)
+   2. Take absolute value of each bin's log odds
+   3. Calculate weighted average: Sum(|logOdds(bin)| × binResponses) / totalResponses
+   4. Optional: Scale to 0-100 range (scaled=True, default)
+
+   This matches the Pega platform implementation in:
+   adaptive-learning-core-lib/.../GroupedPredictor.java lines 371-382
+
+   Formula:
+       Feature Importance = Σ |logOdds(bin)| × (binResponses / totalResponses)
+
+   :param over: Grouping columns. Defaults to ``["PredictorName", "ModelID"]``.
+   :type over: list[str], optional
+   :param scaled: If True, scale importance to 0-100 where max predictor = 100
+   :type scaled: bool, default True
+
+   :returns: Feature importance expression
+   :rtype: pl.Expr
+
+   .. rubric:: Examples
+
+   >>> df.with_columns(
+   ...     feature_importance().over("PredictorName", "ModelID")
+   ... )
+
+   .. rubric:: Notes
+
+   This implementation matches the platform calculation exactly. Issue #263
+   incorrectly suggested "diff from mean" based on R implementation, but
+   the platform actually uses weighted average of absolute log odds.
+
+   .. seealso::
+
+      :py:obj:`log_odds_polars`
+          Calculate per-bin log odds
+
+   .. rubric:: References
+
+   - Issue #263: Calculation of Feature Importance incorrect
+   - Issue #404: Add feature importance explanation to ADM Explained
+   - Platform: GroupedPredictor.java calculatePredictorImportance()
+   - ADM Explained: Feature Importance section
+
+
+.. py:function:: gains_table(df, value: str, index=None, by=None)
+
+   Calculates cumulative gains from any data frame.
+
+   The cumulative gains are the cumulative values expressed
+   as a percentage vs the size of the population, also expressed
+   as a percentage.
+
+   :param df: The (Polars) dataframe with the raw values
+   :type df: pl.DataFrame
+   :param value: The name of the field with the values (plotted on y-axis)
+   :type value: str
+   :param index = None: Optional name of the field for the x-axis. If not passed in
+                        all records are used and weighted equally.
+   :param by = None: Grouping field(s), can also be None
+
+   :returns: A (Polars) dataframe with cum_x and cum_y columns and optionally
+             the grouping column(s). Values for cum_x and cum_y are relative
+             so expressed as values 0-1.
+   :rtype: pl.DataFrame
+
+   .. rubric:: Examples
+
+   >>> gains_data = gains_table(df, 'ResponseCount', by=['Channel','Direction])
+
+

@@ -1,0 +1,124 @@
+pdstools.adm.Plots._binning
+===========================
+
+.. py:module:: pdstools.adm.Plots._binning
+
+.. autoapi-nested-parse::
+
+   Predictor binning visualisations and lift charts.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.adm.Plots._binning._BinningPlotsMixin
+
+
+Module Contents
+---------------
+
+.. py:class:: _BinningPlotsMixin
+
+   Bases: :py:obj:`pdstools.adm.Plots._base._PlotsBase`
+
+
+   Common attribute surface used by every plot mixin.
+
+
+   .. py:method:: predictor_binning(model_id: str, predictor_name: str, return_df: bool = False)
+
+      Generate a predictor binning plot for a specific model and predictor.
+
+      :param model_id: The ID of the model containing the predictor
+      :type model_id: str
+      :param predictor_name: Name of the predictor to analyze
+      :type predictor_name: str
+      :param return_df: Whether to return a dataframe instead of a plot, by default False
+      :type return_df: bool, optional
+
+      :returns: Plotly figure showing predictor binning or DataFrame if return_df=True
+      :rtype: Union[Figure, pl.LazyFrame]
+
+      :raises ValueError: If no data is available for the provided model ID and predictor name
+
+      .. rubric:: Examples
+
+      >>> # Predictor binning for a single predictor on a model
+      >>> fig = dm.plot.predictor_binning(
+      ...     model_id="M-1001",
+      ...     predictor_name="Customer.Age",
+      ... )
+
+      >>> # Retrieve the underlying binning data
+      >>> df = dm.plot.predictor_binning(
+      ...     model_id="M-1001",
+      ...     predictor_name="Customer.Age",
+      ...     return_df=True,
+      ... )
+
+
+
+   .. py:method:: multiple_predictor_binning(model_id: str, query: pdstools.utils.types.QUERY | None = None, show_all=True) -> list[pdstools.utils.plot_utils.Figure]
+
+      Generate predictor binning plots for all predictors in a model.
+
+      :param model_id: The ID of the model to generate predictor binning plots for
+      :type model_id: str
+      :param query: A query to apply to the predictor data, by default None
+      :type query: Optional[QUERY], optional
+      :param show_all: Whether to display all plots or just return the list, by default True
+      :type show_all: bool, optional
+
+      :returns: A list of Plotly figures, one for each predictor in the model
+      :rtype: list[Figure]
+
+      .. rubric:: Examples
+
+      >>> # Plot binning for every predictor in a model
+      >>> figs = dm.plot.multiple_predictor_binning(model_id="M-1001")
+
+      >>> # Collect figures without displaying, filtered to IH predictors
+      >>> figs = dm.plot.multiple_predictor_binning(
+      ...     model_id="M-1001",
+      ...     query={"PredictorCategory": "IH"},
+      ...     show_all=False,
+      ... )
+
+
+
+   .. py:method:: binning_lift(model_id: str, predictor_name: str, *, query: pdstools.utils.types.QUERY | None = None, return_df: bool = False)
+
+      Generate a binning lift plot for a specific predictor showing propensity lift per bin.
+
+      :param model_id: The ID of the model containing the predictor
+      :type model_id: str
+      :param predictor_name: Name of the predictor to analyze for lift
+      :type predictor_name: str
+      :param query: Optional query to filter the predictor data, by default None
+      :type query: Optional[QUERY], optional
+      :param return_df: Whether to return a dataframe instead of a plot, by default False
+      :type return_df: bool, optional
+
+      :returns: Plotly bar chart showing binning lift or DataFrame if return_df=True
+      :rtype: Union[Figure, pl.LazyFrame]
+
+      .. rubric:: Examples
+
+      >>> # Lift chart for a single predictor on a model
+      >>> fig = dm.plot.binning_lift(
+      ...     model_id="M-1001",
+      ...     predictor_name="Customer.Age",
+      ... )
+
+      >>> # Return the lift data for further analysis
+      >>> df = dm.plot.binning_lift(
+      ...     model_id="M-1001",
+      ...     predictor_name="Customer.Age",
+      ...     return_df=True,
+      ... )
+
+
+

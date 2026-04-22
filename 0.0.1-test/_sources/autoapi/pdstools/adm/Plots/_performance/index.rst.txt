@@ -1,0 +1,212 @@
+pdstools.adm.Plots._performance
+===============================
+
+.. py:module:: pdstools.adm.Plots._performance
+
+.. autoapi-nested-parse::
+
+   Performance / volume time-series plots and proposition success rates.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   pdstools.adm.Plots._performance.logger
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.adm.Plots._performance._PerformancePlotsMixin
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:class:: _PerformancePlotsMixin
+
+   Bases: :py:obj:`pdstools.adm.Plots._base._PlotsBase`
+
+
+   Common attribute surface used by every plot mixin.
+
+
+   .. py:method:: over_time(metric: str = 'Performance', by: polars.Expr | str | list[str] = 'ModelID', *, every: str | datetime.timedelta = '1d', cumulative: bool = True, query: pdstools.utils.types.QUERY | None = None, facet: str | None = None, show_metric_limits: bool = False, return_df: bool = False)
+
+      Statistics over time
+
+      :param metric: The metric to plot, by default "Performance"
+      :type metric: str, optional
+      :param by: The column(s) to group by, by default "ModelID". When a list of
+                 column names is passed, the values are concatenated with " / " into
+                 a single combined dimension that is encoded as colour. To keep the
+                 chart readable, the top 10 combinations by total ``metric`` are
+                 kept and the rest are dropped with a warning.
+      :type by: Union[pl.Expr, str, list[str]], optional
+      :param every: By what time period to group, by default "1d", see https://docs.pola.rs/api/python/stable/reference/expressions/api/polars.Expr.dt.truncate.html
+                    for periods.
+      :type every: Union[str, timedelta], optional
+      :param cumulative: Whether to show cumulative values or period-over-period changes, by default True
+      :type cumulative: bool, optional
+      :param query: The query to apply to the data, by default None
+      :type query: Optional[QUERY], optional
+      :param facet: Whether to facet the plot into subplots, by default None
+      :type facet: Optional[str], optional
+      :param show_metric_limits: Whether to show dashed horizontal lines at the metric limit
+                                 thresholds (from MetricLimits.csv), by default False.
+                                 Only applies when metric is "Performance".
+      :type show_metric_limits: bool, optional
+      :param return_df: Whether to return a dataframe instead of a plot, by default False
+      :type return_df: bool, optional
+
+      :returns: Plotly line chart or LazyFrame if return_df=True
+      :rtype: Figure | pl.LazyFrame
+
+      .. rubric:: Examples
+
+      >>> # Default: performance over time, one line per model
+      >>> fig = dm.plot.over_time()
+
+      >>> # SuccessRate over time, grouped by Channel
+      >>> fig = dm.plot.over_time(metric="SuccessRate", by="Channel")
+
+      >>> # Group by multiple dimensions at once (combined into a single
+      >>> # colour-encoded series)
+      >>> fig = dm.plot.over_time(by=["Channel", "Direction"])
+
+      >>> # Period-over-period response-count changes, faceted by Direction
+      >>> fig = dm.plot.over_time(
+      ...     metric="ResponseCount",
+      ...     cumulative=False,
+      ...     facet="Direction",
+      ... )
+
+      >>> # Return the data instead of the figure
+      >>> df = dm.plot.over_time(return_df=True)
+
+
+
+   .. py:method:: proposition_success_rates(metric: str = 'SuccessRate', by: str = 'Name', *, top_n: int = 0, query: pdstools.utils.types.QUERY | None = None, facet: str | None = None, return_df: bool = False)
+
+      Proposition Success Rates
+
+      :param metric: The metric to plot, by default "SuccessRate"
+      :type metric: str, optional
+      :param by: By which column to group the, by default "Name"
+      :type by: str, optional
+      :param top_n: Whether to take a top_n on the `by` column, by default 0
+      :type top_n: int, optional
+      :param query: A query to apply to the data, by default None
+      :type query: Optional[QUERY], optional
+      :param facet: What facetting column to apply to the graph, by default None
+      :type facet: Optional[str], optional
+      :param return_df: Whether to return a DataFrame instead of the graph, by default False
+      :type return_df: bool, optional
+
+      :returns: Plotly histogram figure or LazyFrame if return_df=True
+      :rtype: Figure | pl.LazyFrame
+
+      .. rubric:: Examples
+
+      >>> # Default: average success rate per proposition
+      >>> fig = dm.plot.proposition_success_rates()
+
+      >>> # Top-10 propositions by success rate, faceted by Channel
+      >>> fig = dm.plot.proposition_success_rates(top_n=10, facet="Channel")
+
+      >>> # Use ResponseCount as the metric grouped by Configuration
+      >>> fig = dm.plot.proposition_success_rates(
+      ...     metric="ResponseCount",
+      ...     by="Configuration",
+      ... )
+
+
+
+   .. py:method:: gains_chart(value: str, *, index: str | None = None, by: str | list[str] | None = None, query: pdstools.utils.types.QUERY | None = None, title: str | None = None, return_df: bool = False) -> pdstools.utils.plot_utils.Figure | polars.LazyFrame
+
+      Generate a gains chart showing cumulative distribution of a metric.
+
+      Creates a gains/lift chart to visualize model response skewness. Shows what
+      percentage of the total value (e.g., responses, positives) is driven by what
+      percentage of models. Useful for identifying if a small number of models
+      drive most of the volume.
+
+      :param value: Column name containing the metric to compute gains for (e.g., "ResponseCount", "Positives")
+      :type value: str
+      :param index: Column name to normalize by (e.g., population size). If None, uses model count.
+      :type index: str, optional
+      :param by: Column(s) to group by for separate gain curves (e.g., "Channel" or ["Channel", "Direction"])
+      :type by: str | list[str], optional
+      :param query: Optional query to filter the data before computing gains
+      :type query: QUERY, optional
+      :param title: Chart title. If None, uses "Gains Chart"
+      :type title: str, optional
+      :param return_df: If True, return the gains data instead of the figure
+      :type return_df: bool, default False
+
+      :returns: Plotly figure showing the gains chart, or LazyFrame if return_df=True
+      :rtype: Figure | pl.LazyFrame
+
+      .. rubric:: Examples
+
+      >>> # Single gains curve for response count
+      >>> fig = datamart.plot.gains_chart(value="ResponseCount")
+
+      >>> # Gains curves by channel for positives
+      >>> fig = datamart.plot.gains_chart(
+      ...     value="Positives",
+      ...     by=["Channel", "Direction"],
+      ...     title="Cumulative Positives by Channel"
+      ... )
+
+
+
+   .. py:method:: performance_volume_distribution(*, by: str | list[str] | None = None, query: pdstools.utils.types.QUERY | None = None, bin_width: int = 3, title: str | None = None, return_df: bool = False) -> pdstools.utils.plot_utils.Figure | polars.LazyFrame
+
+      Generate a performance vs volume distribution chart.
+
+      Shows how response volume is distributed across different model performance
+      ranges. Helps identify if volume is driven by high-performing or low-performing
+      models. Ideally, most volume should be in the 60-80 AUC range.
+
+      :param by: Column(s) to group by for separate curves (e.g., "Channel" or ["Channel", "Direction"])
+                 If None, creates a single curve for all data
+      :type by: str | list[str], optional
+      :param query: Optional query to filter the data before analysis
+      :type query: QUERY, optional
+      :param bin_width: Width of performance bins in AUC points (default creates bins of 3: 50-53, 53-56, etc.)
+      :type bin_width: int, default 3
+      :param title: Chart title. If None, uses "Performance vs Volume"
+      :type title: str, optional
+      :param return_df: If True, return the binned data instead of the figure
+      :type return_df: bool, default False
+
+      :returns: Plotly figure showing performance distribution, or LazyFrame if return_df=True
+      :rtype: Figure | pl.LazyFrame
+
+      .. rubric:: Notes
+
+      Performance is binned from 50-100 using the specified bin_width. The chart shows
+      what percentage of responses fall into each performance bin, grouped by the `by`
+      parameter if provided.
+
+      .. rubric:: Examples
+
+      >>> # Single curve for all channels
+      >>> fig = datamart.plot.performance_volume_distribution()
+
+      >>> # Separate curves per channel
+      >>> fig = datamart.plot.performance_volume_distribution(
+      ...     by=["Channel", "Direction"],
+      ...     title="Performance Distribution by Channel"
+      ... )
+
+
+

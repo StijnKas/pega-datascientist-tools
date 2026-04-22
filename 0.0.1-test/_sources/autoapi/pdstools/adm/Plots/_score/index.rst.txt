@@ -1,0 +1,87 @@
+pdstools.adm.Plots._score
+=========================
+
+.. py:module:: pdstools.adm.Plots._score
+
+.. autoapi-nested-parse::
+
+   Score-distribution plots for the classifier.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.adm.Plots._score._ScorePlotsMixin
+
+
+Module Contents
+---------------
+
+.. py:class:: _ScorePlotsMixin
+
+   Bases: :py:obj:`pdstools.adm.Plots._base._PlotsBase`
+
+
+   Common attribute surface used by every plot mixin.
+
+
+   .. py:method:: score_distribution(model_id: str, *, active_range: bool = True, return_df: bool = False)
+
+      Generate a score distribution plot for a specific model.
+
+      :param model_id: The ID of the model to generate the score distribution for
+      :type model_id: str
+      :param active_range: Whether to filter to active score range only, by default True
+      :type active_range: bool, optional
+      :param return_df: Whether to return a dataframe instead of a plot, by default False
+      :type return_df: bool, optional
+
+      :returns: Plotly figure showing score distribution or DataFrame if return_df=True
+      :rtype: Union[Figure, pl.LazyFrame]
+
+      :raises ValueError: If no data is available for the provided model ID
+
+      .. rubric:: Examples
+
+      >>> # Score distribution for a specific model (active range only)
+      >>> fig = dm.plot.score_distribution(model_id="M-1001")
+
+      >>> # Include the full score range rather than just the active range
+      >>> fig = dm.plot.score_distribution(model_id="M-1001", active_range=False)
+
+      >>> # Retrieve the underlying binning data
+      >>> df = dm.plot.score_distribution(model_id="M-1001", return_df=True)
+
+
+
+   .. py:method:: multiple_score_distributions(query: pdstools.utils.types.QUERY | None = None, show_all: bool = True) -> list[pdstools.utils.plot_utils.Figure]
+
+      Generate the score distribution plot for all models in the query
+
+      :param query: A query to apply to the data, by default None
+      :type query: Optional[QUERY], optional
+      :param show_all: Whether to 'show' all plots or just get a list of them, by default True
+      :type show_all: bool, optional
+
+      :returns: A list of Plotly charts, one for each model instance
+      :rtype: list[go.Figure]
+
+      .. rubric:: Examples
+
+      >>> # Generate and display score distributions for all models
+      >>> figs = dm.plot.multiple_score_distributions()
+
+      >>> # Collect figures without displaying them
+      >>> figs = dm.plot.multiple_score_distributions(show_all=False)
+
+      >>> # Limit to a specific channel before generating all distributions
+      >>> figs = dm.plot.multiple_score_distributions(
+      ...     query={"Channel": "Web"},
+      ...     show_all=False,
+      ... )
+
+
+

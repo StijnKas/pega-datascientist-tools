@@ -1,0 +1,70 @@
+pdstools.utils.cdh_utils._io
+============================
+
+.. py:module:: pdstools.utils.cdh_utils._io
+
+.. autoapi-nested-parse::
+
+   I/O, logging, working-directory and version-check helpers.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.utils.cdh_utils._io.process_files_to_bytes
+   pdstools.utils.cdh_utils._io.get_latest_pdstools_version
+   pdstools.utils.cdh_utils._io.setup_logger
+   pdstools.utils.cdh_utils._io.create_working_and_temp_dir
+   pdstools.utils.cdh_utils._io._read_pdc
+
+
+Module Contents
+---------------
+
+.. py:function:: process_files_to_bytes(file_paths: list[str | pathlib.Path], base_file_name: str | pathlib.Path) -> tuple[bytes, str]
+
+   Processes a list of file paths, returning file content as bytes and a corresponding file name.
+   Useful for zipping muliple model reports and the byte object is used for downloading files in
+   Streamlit app.
+
+   This function handles three scenarios:
+   1. Single file: Returns the file's content as bytes and the provided base file name.
+   2. Multiple files: Creates a zip file containing all files, returns the zip file's content as bytes
+      and a generated zip file name.
+   3. No files: Returns empty bytes and an empty string.
+
+   :param file_paths: A list of file paths to process. Can be empty, contain a single path, or multiple paths.
+   :type file_paths: list[str | Path]
+   :param base_file_name: The base name to use for the output file. For a single file, this name is returned as is.
+                          For multiple files, this is used as part of the generated zip file name.
+   :type base_file_name: str | Path
+
+   :returns: A tuple containing:
+             - bytes: The content of the single file or the created zip file, or empty bytes if no files.
+             - str: The file name (either base_file_name or a generated zip file name), or an empty string if no files.
+   :rtype: tuple[bytes, str]
+
+
+.. py:function:: get_latest_pdstools_version()
+
+.. py:function:: setup_logger()
+
+   Return the ``pdstools`` logger and a log buffer it streams into.
+
+   Targets the named ``pdstools`` logger rather than the root logger so we
+   don't clobber the host application's logging config (Streamlit, Quarto,
+   Jupyter, etc.). Idempotent: repeated calls return the same buffer
+   instead of stacking new handlers, so re-running a notebook cell or
+   bouncing a Streamlit page doesn't produce duplicated log lines.
+
+
+.. py:function:: create_working_and_temp_dir(name: str | None = None, working_dir: os.PathLike | None = None) -> tuple[pathlib.Path, pathlib.Path]
+
+   Creates a working directory for saving files and a temp_dir
+
+
+.. py:function:: _read_pdc(pdc_data: polars.LazyFrame)
+

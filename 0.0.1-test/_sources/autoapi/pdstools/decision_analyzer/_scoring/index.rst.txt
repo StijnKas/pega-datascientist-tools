@@ -1,0 +1,341 @@
+pdstools.decision_analyzer._scoring
+===================================
+
+.. py:module:: pdstools.decision_analyzer._scoring
+
+.. autoapi-nested-parse::
+
+   Scoring/ranking/sensitivity namespace for :class:`DecisionAnalyzer`.
+
+   Methods in this module are exposed via ``da.scoring.<method>``.  They
+   cover re-ranking the priority formula, win/loss analysis, sensitivity
+   of the PVCL components, lever search, and quantile-based thresholding.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer._scoring.Scoring
+
+
+Module Contents
+---------------
+
+.. py:class:: Scoring(da: pdstools.decision_analyzer.DecisionAnalyzer.DecisionAnalyzer)
+
+   Scoring, ranking and lever-analysis queries.
+
+   Accessed via :attr:`DecisionAnalyzer.scoring`.
+
+
+   .. py:attribute:: da
+
+
+   .. py:method:: re_rank(additional_filters: polars.Expr | list[polars.Expr] | None = None, overrides: list[polars.Expr] | None = None) -> polars.LazyFrame
+
+      Recalculate priority and rank for all PVCL component combinations.
+
+      Computes five alternative priority scores by selectively dropping one
+      component at a time (Propensity, Value, Context Weight, Levers) and
+      ranks actions within each interaction for each variant.  This is the
+      foundation for sensitivity analysis.
+
+      :param additional_filters: Filters applied to the sample before ranking.
+      :type additional_filters: pl.Expr or list of pl.Expr, optional
+      :param overrides: Column override expressions applied before priority calculation
+                        (e.g. to simulate lever adjustments).
+      :type overrides: list of pl.Expr, optional
+
+      :returns: Sample data augmented with ``prio_*`` and ``rank_*`` columns
+                for each PVCL variant.
+      :rtype: pl.LazyFrame
+
+
+
+   .. py:method:: get_selected_group_rank_boundaries(group_filter: polars.Expr | list[polars.Expr], additional_filters: polars.Expr | list[polars.Expr] | None = None) -> polars.LazyFrame
+
+      Compute selected-group rank boundaries per interaction.
+
+      For each interaction where the selected comparison group is present,
+      returns the best (lowest) and worst (highest) rank observed for the
+      selected rows in arbitration-relevant stages.
+
+
+
+   .. py:method:: _remaining_at_stage(stage: str | None = None, additional_filters: polars.Expr | list[polars.Expr] | None = None) -> polars.LazyFrame
+
+      Return sample rows remaining at *stage*.
+
+      Uses the ``aggregate_remaining_per_stage`` logic: rows whose stage
+      order is >= the selected stage are "remaining" there.  If *stage*
+      is None, falls back to rows with non-null Priority.
+
+
+
+   .. py:method:: get_sensitivity(win_rank: int = 1, group_filter: polars.Expr | list[polars.Expr] | None = None, additional_filters: polars.Expr | list[polars.Expr] | None = None) -> polars.LazyFrame
+
+      Global or local sensitivity of the prioritization factors.
+
+      :param win_rank: Maximum rank to be considered a winner.
+      :type win_rank: int
+      :param group_filter: Selected offers, only used in local sensitivity analysis.
+                           When ``None`` (global), results are cached by ``win_rank``.
+      :type group_filter: pl.Expr, optional
+      :param additional_filters: Extra filters applied to the sample before re-ranking
+                                 (e.g. channel filter).  When set, caching is bypassed.
+      :type additional_filters: pl.Expr or list[pl.Expr], optional
+
+      :rtype: pl.LazyFrame
+
+
+
+   .. py:method:: get_thresholding_data(fld: str, quantile_range=range(10, 100, 10)) -> polars.DataFrame
+
+      Quantile-based thresholding analysis at Arbitration.
+
+      Computes counts and threshold values at each quantile for the given
+      field (*fld*).  Results are cached per ``(fld, quantile_range)``.
+
+      :param fld: Column name to compute quantiles for (e.g. ``"Propensity"``).
+      :type fld: str
+      :param quantile_range: Percentile breakpoints to compute.
+      :type quantile_range: range, default ``range(10, 100, 10)``
+
+      :returns: Long-format table with columns ``Decile``, ``Count``,
+                ``Threshold``, and the stage-level column.
+      :rtype: pl.DataFrame
+
+
+
+   .. py:method:: priority_component_distribution(component: str, granularity: str, stage: str | None = None, additional_filters: polars.Expr | list[polars.Expr] | None = None) -> polars.LazyFrame
+
+      Data for a single component's distribution, grouped by granularity.
+
+      :param component: Column name of the component to analyze.
+      :type component: str
+      :param granularity: Column to group by (e.g. "Issue", "Group", "Action").
+      :type granularity: str
+      :param stage: Filter to actions remaining at this stage. If None, uses all
+                    rows with non-null Priority.
+      :type stage: str, optional
+      :param additional_filters: Extra filters applied to the sample (e.g. channel filter).
+      :type additional_filters: pl.Expr or list[pl.Expr], optional
+
+
+
+   .. py:method:: all_components_distribution(granularity: str, stage: str | None = None, additional_filters: polars.Expr | list[polars.Expr] | None = None) -> polars.LazyFrame
+
+      Data for the overview panel: all prioritization components at once.
+
+      :param granularity: Column to group by.
+      :type granularity: str
+      :param stage: Filter to actions remaining at this stage.
+      :type stage: str, optional
+      :param additional_filters: Extra filters applied to the sample (e.g. channel filter).
+      :type additional_filters: pl.Expr or list[pl.Expr], optional
+
+
+
+   .. py:method:: get_win_loss_distribution_data(level: str | list[str], win_rank: int | None = None, additional_filters: polars.Expr | list[polars.Expr] | None = None, group_filter: polars.Expr | list[polars.Expr] | None = None, status: Literal['Wins', 'Losses'] | None = None, top_k: int | None = None) -> polars.LazyFrame
+
+      Win/loss distribution at a given scope level.
+
+      Operates in two modes depending on whether *group_filter* is provided:
+
+      * **Without group_filter** (rank-based): uses pre-aggregated data and
+        a fixed *win_rank* threshold to split wins/losses.
+      * **With group_filter** (group-based): uses sample data and
+        per-interaction rank boundaries of the selected group to identify
+        actions it beats (*Wins*) or loses to (*Losses*).
+
+      :param level: Column(s) to group the distribution by (e.g. ``"Action"``).
+      :type level: str or list of str
+      :param win_rank: Fixed rank threshold (required when *group_filter* is ``None``).
+      :type win_rank: int, optional
+      :param additional_filters: Extra filters applied before aggregation.
+      :type additional_filters: pl.Expr or list of pl.Expr, optional
+      :param group_filter: Filter defining the comparison group.
+      :type group_filter: pl.Expr or list of pl.Expr, optional
+      :param status: Required when *group_filter* is provided.
+      :type status: {"Wins", "Losses"}, optional
+      :param top_k: Limit the number of rows returned (group_filter mode only).
+      :type top_k: int, optional
+
+      :rtype: pl.LazyFrame
+
+
+
+   .. py:method:: _winning_from(interactions: polars.LazyFrame, win_rank: int, groupby_cols: list[str], top_k: int = 20, additional_filters: polars.Expr | list[polars.Expr] | None = None) -> polars.LazyFrame
+
+      Actions beaten by the comparison group in its winning interactions.
+
+      :param interactions: Interaction IDs where the comparison group wins.
+      :param win_rank: Rank threshold used to define "winning".
+      :param groupby_cols: Columns to group by (e.g. ``["Issue", "Group", "Action"]``).
+      :param top_k: Return only the top-k entries.
+      :param additional_filters: Optional extra filters (e.g. channel filter).
+
+
+
+   .. py:method:: _losing_to(interactions: polars.LazyFrame, win_rank: int, groupby_cols: list[str], top_k: int = 20, additional_filters: polars.Expr | list[polars.Expr] | None = None) -> polars.LazyFrame
+
+      Actions that beat the comparison group in its losing interactions.
+
+      :param interactions: Interaction IDs where the comparison group loses.
+      :param win_rank: Rank threshold used to define "winning".
+      :param groupby_cols: Columns to group by (e.g. ``["Issue", "Group", "Action"]``).
+      :param top_k: Return only the top-k entries.
+      :param additional_filters: Optional extra filters (e.g. channel filter).
+
+
+
+   .. py:method:: get_winning_or_losing_interactions(group_filter: polars.Expr | list[polars.Expr], win: bool, additional_filters: polars.Expr | list[polars.Expr] | None = None) -> polars.LazyFrame
+
+      Interaction IDs where the comparison group wins or loses.
+
+      :param group_filter: Filter defining the comparison group.
+      :type group_filter: pl.Expr or list of pl.Expr
+      :param win: If True, return interactions where the group wins (there are
+                  lower-ranked actions outside the group).  If False, return
+                  interactions where the group loses (there are higher-ranked
+                  actions outside the group).
+      :type win: bool
+      :param additional_filters: Extra filters (e.g. channel filter).
+      :type additional_filters: pl.Expr or list of pl.Expr, optional
+
+      :returns: Single-column frame of unique ``Interaction ID`` values.
+      :rtype: pl.LazyFrame
+
+
+
+   .. py:method:: get_win_loss_counts(group_filter: polars.Expr | list[polars.Expr], win_rank: int = 1, additional_filters: polars.Expr | list[polars.Expr] | None = None) -> dict[str, int]
+
+      Count wins and losses for the comparison group at a given rank threshold.
+
+      A **win** is an interaction where at least one member of the comparison
+      group achieves a rank of *win_rank* or better (lower). A **loss** is
+      any interaction where the group participates but none rank that high.
+
+      :param group_filter: Filter expression(s) defining the comparison group.
+      :param win_rank: Rank threshold. The group "wins" when its best rank <= win_rank.
+      :param additional_filters: Optional extra filters (e.g. channel/direction).
+
+      :rtype: dict with keys ``"wins"``, ``"losses"``, ``"total"``.
+
+
+
+   .. py:method:: get_win_loss_distributions(interactions_win: polars.LazyFrame, interactions_loss: polars.LazyFrame, groupby_cols: list[str], top_k: int, additional_filters: polars.Expr | list[polars.Expr] | None = None, group_filter: polars.Expr | list[polars.Expr] | None = None, win_rank: int | None = None) -> tuple[polars.LazyFrame, polars.LazyFrame]
+
+      Distribution of actions the comparison group wins from and loses to.
+
+      Computes two aggregated distributions in a single pass over the
+      stage-filtered data:
+
+      * **winning_from**: actions ranked below the comparison group (i.e.
+        actions it beats).
+      * **losing_to**: actions ranked above the comparison group (i.e.
+        actions that beat it).
+
+      Either *group_filter* or *win_rank* must be provided to define the
+      rank boundary.  When *group_filter* is given the boundary is the
+      per-interaction best/worst rank of the selected group.  When only
+      *win_rank* is given a fixed rank threshold is used instead.
+
+      :param interactions_win: Interaction IDs where the comparison group wins (from
+                               ``get_winning_or_losing_interactions(win=True)``).
+      :param interactions_loss: Interaction IDs where the comparison group loses (from
+                                ``get_winning_or_losing_interactions(win=False)``).
+      :param groupby_cols: Columns to group by (e.g. ``["Action"]``).
+      :param top_k: Return only the top-k entries per distribution.
+      :param additional_filters: Optional extra filters (e.g. channel/direction).
+      :param group_filter: Filter expression(s) defining the comparison group.
+      :param win_rank: Fixed rank threshold. Required when *group_filter* is ``None``.
+
+      :returns: * tuple of (winning_from, losing_to), both ``pl.LazyFrame`` with
+                * columns from *groupby_cols* plus ``Decisions``.
+
+
+
+   .. py:method:: get_win_distribution_data(lever_condition: polars.Expr, lever_value: float | None = None, all_interactions: int | None = None) -> polars.DataFrame
+
+      Calculate win distribution data for business lever analysis.
+
+      This method generates distribution data showing how actions perform in
+      arbitration decisions, both in baseline conditions and optionally with
+      lever adjustments applied.
+
+      :param lever_condition: Polars expression defining which actions to apply the lever to.
+                              Example: pl.col("Action") == "SpecificAction" or
+                                      (pl.col("Issue") == "Service") & (pl.col("Group") == "Cards")
+      :type lever_condition: pl.Expr
+      :param lever_value: The lever multiplier value to apply to selected actions.
+                          If None, returns baseline distribution only.
+                          If provided, returns both original and lever-adjusted win counts.
+      :type lever_value: float, optional
+      :param all_interactions: Total number of interactions to calculate "no winner" count.
+                               If provided, enables calculation of interactions without any winner.
+                               If None, "no winner" data is not calculated.
+      :type all_interactions: int, optional
+
+      :returns: DataFrame containing win distribution with columns:
+                - Issue, Group, Action: Action identifiers
+                - original_win_count: Number of rank-1 wins in baseline scenario
+                - new_win_count: Number of rank-1 wins after lever adjustment (only if lever_value provided)
+                - n_decisions_survived_to_arbitration: Number of arbitration decisions the action participated in
+                - selected_action: "Selected" for actions matching lever_condition, "Rest" for others
+                - no_winner_count: Number of interactions without any winner (only if all_interactions provided)
+      :rtype: pl.DataFrame
+
+      .. rubric:: Notes
+
+      - Only includes actions that survive to arbitration stage
+      - Win counts represent rank-1 (first place) finishes in arbitration decisions
+      - This is a zero-sum analysis: boosting selected actions suppresses others
+      - Results are sorted by win count (new_win_count if available, else original_win_count)
+      - When all_interactions is provided, "no winner" represents interactions without any rank-1 winner
+
+      .. rubric:: Examples
+
+      Get baseline distribution for a specific action:
+      >>> lever_cond = pl.col("Action") == "MyAction"
+      >>> baseline = decision_analyzer.get_win_distribution_data(lever_cond)
+
+      Get distribution with 2x lever applied to service actions:
+      >>> lever_cond = pl.col("Issue") == "Service"
+      >>> with_lever = decision_analyzer.get_win_distribution_data(lever_cond, 2.0)
+
+      Get distribution with no winner count:
+      >>> total_interactions = 10000
+      >>> with_no_winner = decision_analyzer.get_win_distribution_data(lever_cond, 2.0, total_interactions)
+
+
+
+   .. py:method:: find_lever_value(lever_condition: polars.Expr, target_win_percentage: float, win_rank: int = 1, low: float = 0, high: float = 100, precision: float = 0.01, ranking_stages: list[str] | None = None) -> float
+
+      Binary search algorithm to find lever value needed to achieve a desired win percentage.
+
+      :param lever_condition: Polars expression that defines which actions should receive the lever
+      :type lever_condition: pl.Expr
+      :param target_win_percentage: The desired win percentage (0-100)
+      :type target_win_percentage: float
+      :param win_rank: Consider actions winning if they rank <= this value
+      :type win_rank: int, default 1
+      :param low: Lower bound for lever search range
+      :type low: float, default 0
+      :param high: Upper bound for lever search range
+      :type high: float, default 100
+      :param precision: Search precision - smaller values give more accurate results
+      :type precision: float, default 0.01
+      :param ranking_stages: List of stages to include in analysis. Defaults to ["Arbitration"]
+      :type ranking_stages: list[str], optional
+
+      :returns: The lever value needed to achieve the target win percentage
+      :rtype: float
+
+      :raises ValueError: If the target win percentage cannot be achieved within the search range
+
+
+

@@ -1,0 +1,72 @@
+pdstools.utils.report_utils._polars_helpers
+===========================================
+
+.. py:module:: pdstools.utils.report_utils._polars_helpers
+
+.. autoapi-nested-parse::
+
+   Small Polars helpers and aggregations used by Quarto reports.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.utils.report_utils._polars_helpers.polars_col_exists
+   pdstools.utils.report_utils._polars_helpers.polars_subset_to_existing_cols
+   pdstools.utils.report_utils._polars_helpers.n_unique_values
+   pdstools.utils.report_utils._polars_helpers.max_by_hierarchy
+   pdstools.utils.report_utils._polars_helpers.avg_by_hierarchy
+   pdstools.utils.report_utils._polars_helpers.sample_values
+   pdstools.utils.report_utils._polars_helpers.gains_table
+
+
+Module Contents
+---------------
+
+.. py:function:: polars_col_exists(df, col)
+
+.. py:function:: polars_subset_to_existing_cols(all_columns, cols)
+
+.. py:function:: n_unique_values(dm, all_dm_cols, fld)
+
+.. py:function:: max_by_hierarchy(dm, all_dm_cols, fld, grouping)
+
+.. py:function:: avg_by_hierarchy(dm, all_dm_cols, fld, grouping)
+
+.. py:function:: sample_values(dm, all_dm_cols, fld, n=6)
+
+.. py:function:: gains_table(df: polars.LazyFrame | polars.DataFrame, value: str, index: str | None = None, by: str | list[str] | None = None) -> polars.DataFrame
+
+   Calculate cumulative gains for visualization.
+
+   Computes cumulative distribution of a value metric, sorted by the ratio
+   of value to index (or by value alone if no index). Used for gains charts
+   to show model response skewness.
+
+   :param df: Input data containing the value and optional index columns
+   :type df: pl.LazyFrame | pl.DataFrame
+   :param value: Column name containing the metric to compute gains for (e.g., "ResponseCount")
+   :type value: str
+   :param index: Column name to normalize by (e.g., population size). If None, uses row count.
+   :type index: str, optional
+   :param by: Column(s) to group by for separate gain curves. If None, computes single curve.
+   :type by: str | list[str], optional
+
+   :returns: DataFrame with columns:
+             - cum_x: Cumulative proportion of index (or models)
+             - cum_y: Cumulative proportion of value
+             - by columns: if `by` is specified
+   :rtype: pl.DataFrame
+
+   .. rubric:: Examples
+
+   >>> # Single gains curve for response count
+   >>> gains = gains_table(df, value="ResponseCount")
+
+   >>> # Gains curves by channel, normalized by population
+   >>> gains = gains_table(df, value="Positives", index="Population", by="Channel")
+
+

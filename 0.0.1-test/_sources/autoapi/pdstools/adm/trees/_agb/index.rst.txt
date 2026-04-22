@@ -1,0 +1,74 @@
+pdstools.adm.trees._agb
+=======================
+
+.. py:module:: pdstools.adm.trees._agb
+
+.. autoapi-nested-parse::
+
+   Datamart-level AGB discovery helper.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   pdstools.adm.trees._agb.logger
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.adm.trees._agb.AGB
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:class:: AGB(datamart: pdstools.adm.ADMDatamart.ADMDatamart)
+
+   Datamart helper for discovering and extracting AGB models.
+
+   Reachable as ``ADMDatamart.agb``; not intended to be instantiated
+   directly.
+
+
+   .. py:attribute:: datamart
+
+
+   .. py:method:: discover_model_types(df: polars.LazyFrame, by: str = 'Configuration') -> dict[str, str]
+
+      Discover the type of model embedded in the ``Modeldata`` column.
+
+      Groups by ``by`` (typically Configuration, since one model rule
+      contains one model type) and decodes the first ``Modeldata`` blob
+      per group to extract its ``_serialClass``.
+
+      :param df: Datamart slice including ``Modeldata``.  Collected internally.
+      :type df: pl.LazyFrame
+      :param by: Grouping column.  ``Configuration`` is recommended.
+      :type by: str
+
+
+
+   .. py:method:: get_agb_models(last: bool = False, n_threads: int = 6, query: pdstools.utils.types.QUERY | None = None) -> dict[str, pdstools.adm.trees._multi.MultiTrees]
+
+      Get all AGB models in the datamart, indexed by Configuration.
+
+      Filters down to models whose ``_serialClass`` ends with
+      ``GbModel`` and decodes them via :class:`MultiTrees`.
+
+      :param last: If True, use only the latest snapshot per model.
+      :type last: bool
+      :param n_threads: Worker count for parallel blob decoding.
+      :type n_threads: int
+      :param query: Optional pre-filter applied before discovery.
+      :type query: QUERY | None
+
+
+

@@ -1,0 +1,58 @@
+pdstools.decision_analyzer.plots._distribution
+==============================================
+
+.. py:module:: pdstools.decision_analyzer.plots._distribution
+
+.. autoapi-nested-parse::
+
+   Distribution-style plots: treemap, action variation, histograms, rank/parameter boxplots.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer.plots._distribution.distribution_as_treemap
+   pdstools.decision_analyzer.plots._distribution.action_variation
+   pdstools.decision_analyzer.plots._distribution.distribution
+   pdstools.decision_analyzer.plots._distribution.rank_boxplot
+   pdstools.decision_analyzer.plots._distribution.create_parameter_distribution_boxplots
+
+
+Module Contents
+---------------
+
+.. py:function:: distribution_as_treemap(self, df: polars.LazyFrame, stage: str, scope_options: list[str])
+
+.. py:function:: action_variation(self, stage='Final', color_by=None, return_df=False)
+
+   Plot action variation (Lorenz curve showing action concentration).
+
+   Args:
+       stage: Stage to analyze
+       color_by: Optional dimension to color by (e.g., "Channel/Direction")
+       return_df: If True, return the data instead of the figure
+
+
+.. py:function:: distribution(self, df: polars.LazyFrame, scope: str, breakdown: str, metric: str = 'Decisions', horizontal=False)
+
+.. py:function:: rank_boxplot(self, reference: polars.Expr | list[polars.Expr] | None = None, return_df=False, additional_filters=None)
+
+.. py:function:: create_parameter_distribution_boxplots(segmented_df: polars.DataFrame, parameters: list[str] | None = None, title: str = 'Parameter Distributions: Selected Actions vs Competitors') -> plotly.graph_objects.Figure
+
+   Create box plots comparing parameter distributions between selected actions and others.
+
+   :param segmented_df: DataFrame with columns for parameters and a 'segment' column
+                        containing "Selected Actions" or "Others"
+   :type segmented_df: pl.DataFrame
+   :param parameters: List of parameter column names to plot
+   :type parameters: list[str], optional
+   :param title: Title for the plot
+   :type title: str, optional
+
+   :returns: Plotly figure with box plots
+   :rtype: go.Figure
+
+

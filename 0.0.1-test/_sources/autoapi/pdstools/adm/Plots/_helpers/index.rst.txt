@@ -1,0 +1,59 @@
+pdstools.adm.Plots._helpers
+===========================
+
+.. py:module:: pdstools.adm.Plots._helpers
+
+.. autoapi-nested-parse::
+
+   Shared helpers for the :mod:`pdstools.adm.Plots` package.
+
+   Contains the ``requires`` decorator (column-presence guard for plot
+   methods), the ``MetricLimits`` annotation helper, and small
+   plotly building blocks reused by multiple mixins.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   pdstools.adm.Plots._helpers.logger
+   pdstools.adm.Plots._helpers.COLORSCALE_TYPES
+   pdstools.adm.Plots._helpers.T
+   pdstools.adm.Plots._helpers.P
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.adm.Plots._helpers.requires
+   pdstools.adm.Plots._helpers.add_bottom_left_text_to_bubble_plot
+   pdstools.adm.Plots._helpers.add_metric_limit_lines
+   pdstools.adm.Plots._helpers.distribution_graph
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:data:: COLORSCALE_TYPES
+
+.. py:data:: T
+
+.. py:data:: P
+
+.. py:function:: requires(model_columns: collections.abc.Iterable[str] | None = None, predictor_columns: collections.abc.Iterable[str] | None = None, combined_columns: collections.abc.Iterable[str] | None = None)
+
+.. py:function:: add_bottom_left_text_to_bubble_plot(fig: pdstools.utils.plot_utils.Figure, df: polars.LazyFrame, bubble_size: int)
+
+.. py:function:: add_metric_limit_lines(fig: pdstools.utils.plot_utils.Figure, metric_id: str = 'ModelPerformance', scale: float = 100.0, orientation: str = 'vertical') -> pdstools.utils.plot_utils.Figure
+
+   Add dashed lines at MetricLimits thresholds (red=hard, green=best practice).
+
+
+.. py:function:: distribution_graph(df: polars.LazyFrame, title: str)
+

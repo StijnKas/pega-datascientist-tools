@@ -1,0 +1,89 @@
+pdstools.utils.cdh_utils._dates
+===============================
+
+.. py:module:: pdstools.utils.cdh_utils._dates
+
+.. autoapi-nested-parse::
+
+   Date and time helpers for Pega-formatted timestamps.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.utils.cdh_utils._dates.parse_pega_date_time_formats
+   pdstools.utils.cdh_utils._dates.from_prpc_date_time
+   pdstools.utils.cdh_utils._dates.to_prpc_date_time
+   pdstools.utils.cdh_utils._dates._get_start_end_date_args
+
+
+Module Contents
+---------------
+
+.. py:function:: parse_pega_date_time_formats(timestamp_col='SnapshotTime', timestamp_fmt: str | None = None, timestamp_dtype: polars._typing.PolarsTemporalType = pl.Datetime) -> polars.Expr
+
+   Parses Pega DateTime formats.
+
+   Supports commonly used formats:
+
+   - "%Y-%m-%d %H:%M:%S"
+   - "%Y%m%dT%H%M%S.%f %Z"
+   - "%d-%b-%y"
+   - "%d%b%Y:%H:%M:%S"
+   - "%Y%m%d"
+
+   Removes timezones, and rounds to seconds, with a 'ns' time unit.
+
+   In the implementation, the last expression uses timestamp_fmt or %Y.
+   This is a bit of a hack, because if we pass None, it tries to infer automatically.
+   Inferring raises when it can't find an appropriate format, so that's not good.
+
+   :param timestampCol: The column to parse
+   :type timestampCol: str, default = 'SnapshotTime'
+   :param timestamp_fmt: An optional format to use rather than the default formats
+   :type timestamp_fmt: str, default = None
+   :param timestamp_dtype: The data type to convert into. Can be either Date, Datetime, or Time.
+   :type timestamp_dtype: PolarsTemporalType, default = pl.Datetime
+
+
+.. py:function:: from_prpc_date_time(x: str, return_string: bool = False, use_timezones: bool = True) -> datetime.datetime | str
+
+   Convert from a Pega date-time string.
+
+   :param x: String of Pega date-time
+   :type x: str
+   :param return_string: If True it will return the date in string format. If
+                         False it will return in datetime type
+   :type return_string: bool, default=False
+
+   :returns: The converted date in datetime format or string.
+   :rtype: datetime.datetime | str
+
+   .. rubric:: Examples
+
+   >>> fromPRPCDateTime("20180316T134127.847 GMT")
+   >>> fromPRPCDateTime("20180316T134127.847 GMT", True)
+   >>> fromPRPCDateTime("20180316T184127.846")
+   >>> fromPRPCDateTime("20180316T184127.846", True)
+
+
+.. py:function:: to_prpc_date_time(dt: datetime.datetime) -> str
+
+   Convert to a Pega date-time string
+
+   :param x: A datetime object
+   :type x: datetime.datetime
+
+   :returns: A string representation in the format used by Pega
+   :rtype: str
+
+   .. rubric:: Examples
+
+   >>> toPRPCDateTime(datetime.datetime.now())
+
+
+.. py:function:: _get_start_end_date_args(data: polars.Series | polars.LazyFrame | polars.DataFrame, start_date: datetime.datetime | None = None, end_date: datetime.datetime | None = None, window: int | datetime.timedelta | None = None, datetime_field='SnapshotTime')
+

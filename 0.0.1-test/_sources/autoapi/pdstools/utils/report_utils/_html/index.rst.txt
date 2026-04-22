@@ -1,0 +1,129 @@
+pdstools.utils.report_utils._html
+=================================
+
+.. py:module:: pdstools.utils.report_utils._html
+
+.. autoapi-nested-parse::
+
+   HTML post-processing: CSS inlining, zip bundling, error scanning.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   pdstools.utils.report_utils._html._LINK_STYLESHEET_RE
+   pdstools.utils.report_utils._html._HREF_ATTR_RE
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.utils.report_utils._html._inline_css
+   pdstools.utils.report_utils._html.generate_zipped_report
+   pdstools.utils.report_utils._html.bundle_quarto_resources
+   pdstools.utils.report_utils._html.check_report_for_errors
+
+
+Module Contents
+---------------
+
+.. py:data:: _LINK_STYLESHEET_RE
+
+.. py:data:: _HREF_ATTR_RE
+
+.. py:function:: _inline_css(html_path: pathlib.Path, base_dir: pathlib.Path) -> int
+
+   Inline relative CSS ``<link>`` tags in an HTML file.
+
+   Replaces each ``<link rel="stylesheet" href="...">`` whose ``href`` is a
+   relative path with an inline ``<style>`` block containing the CSS text.
+   Absolute URLs (``http://``, ``https://``, ``//``) are left untouched.
+   Missing files are logged as warnings and left alone.
+
+   :param html_path: HTML file to patch in-place.
+   :type html_path: Path
+   :param base_dir: Directory used to resolve relative ``href`` values.
+   :type base_dir: Path
+
+   :returns: Number of CSS files successfully inlined.
+   :rtype: int
+
+
+.. py:function:: generate_zipped_report(output_filename: str, folder_to_zip: str)
+
+   Generate a zipped archive of a directory.
+
+   This is a general-purpose utility function that can compress any directory
+   into a zip archive. While named for report generation, it works with any
+   directory structure.
+
+   :param output_filename: Name of the output file (extension will be replaced with .zip)
+   :type output_filename: str
+   :param folder_to_zip: Path to the directory to be compressed
+   :type folder_to_zip: str
+
+   :rtype: None
+
+   :raises FileNotFoundError: If the folder to zip does not exist or is not a directory
+
+   .. rubric:: Examples
+
+   >>> generate_zipped_report("my_archive.zip", "/path/to/directory")
+   >>> generate_zipped_report("report_2023", "/tmp/report_output")
+
+
+.. py:function:: bundle_quarto_resources(output_path: pathlib.Path) -> pathlib.Path
+
+   Bundle a Quarto-rendered file with its resources folder into a zip.
+
+   When Quarto renders an HTML report without ``embed-resources``, it emits
+   the HTML alongside a ``<basename>_files/`` directory containing the
+   JavaScript and CSS assets the report needs. This helper detects that
+   pattern and wraps both into a single ``<basename>.zip`` archive so the
+   report can be distributed and unpacked as one unit.
+
+   If no companion resources folder exists next to ``output_path`` (e.g. the
+   report was fully embedded, or the format doesn't produce resources), the
+   function is a no-op and returns ``output_path`` unchanged.
+
+   :param output_path: Path to the rendered report file (typically an HTML file). The
+                       companion resources folder is expected at ``<output_path stem>_files``
+                       in the same directory.
+   :type output_path: Path
+
+   :returns: Path to the zip archive when bundling occurred, otherwise the
+             original ``output_path``.
+   :rtype: Path
+
+
+.. py:function:: check_report_for_errors(html_path: str | pathlib.Path) -> list[str]
+
+   Check generated report HTML for error indicators.
+
+   Scans the HTML file for error patterns that indicate plot rendering failures
+   or exceptions during report generation. These errors are typically hidden in
+   collapsed callout sections but should be caught in testing.
+
+   :param html_path: Path to the HTML file to check
+   :type html_path: str or Path
+
+   :returns: List of error descriptions found (empty if no errors)
+   :rtype: list[str]
+
+   :raises FileNotFoundError: If the HTML file does not exist
+
+   .. rubric:: Examples
+
+   >>> from pdstools.utils.report_utils import check_report_for_errors
+   >>> errors = check_report_for_errors("HealthCheck.html")
+   >>> if errors:
+   ...     print(f"Found {len(errors)} error(s):")
+   ...     for error in errors:
+   ...         print(f"  - {error}")
+
+

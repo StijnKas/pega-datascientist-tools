@@ -1,0 +1,77 @@
+pdstools.decision_analyzer.plots._winloss
+=========================================
+
+.. py:module:: pdstools.decision_analyzer.plots._winloss
+
+.. autoapi-nested-parse::
+
+   Win/loss distribution plots.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer.plots._winloss.global_winloss_distribution
+   pdstools.decision_analyzer.plots._winloss.create_win_distribution_plot
+
+
+Module Contents
+---------------
+
+.. py:function:: global_winloss_distribution(self, level, win_rank, return_df=False, additional_filters=None)
+
+.. py:function:: create_win_distribution_plot(data: polars.DataFrame, win_count_col: str, scope_config: dict[str, str | list[str]], title_suffix: str, y_axis_title: str) -> tuple[plotly.graph_objects.Figure, polars.DataFrame]
+
+   Create a win distribution bar chart with highlighted selected items.
+
+   This function creates a bar chart showing win counts across actions, groups, or issues
+   based on the scope configuration. It automatically aggregates data appropriately and
+   highlights the selected item in red while showing others in grey.
+
+   :param data: DataFrame containing win distribution data with action identifiers and win counts
+   :type data: pl.DataFrame
+   :param win_count_col: Column name containing win counts to plot (e.g., "original_win_count", "new_win_count")
+   :type win_count_col: str
+   :param scope_config: Configuration dictionary from get_scope_config() containing:
+                        - level: "Action", "Group", or "Issue"
+                        - group_cols: List of columns for grouping
+                        - x_col: Column name for x-axis
+                        - selected_value: Value to highlight in red
+                        - plot_title_prefix: Prefix for plot title
+   :type scope_config: dict[str, str | list[str]]
+   :param title_suffix: Suffix to add to plot title (e.g., "Current Performance", "After Lever Adjustment")
+   :type title_suffix: str
+   :param y_axis_title: Title for y-axis (e.g., "Current Win Count", "New Win Count")
+   :type y_axis_title: str
+
+   :returns:
+
+             - Plotly figure with bar chart
+             - Processed plot data (aggregated if needed)
+   :rtype: tuple[go.Figure, pl.DataFrame]
+
+   .. rubric:: Notes
+
+   - For Action level: Shows individual actions
+   - For Group/Issue level: Automatically aggregates data by summing win counts
+   - Selected item is highlighted in red (#FF0000), others in grey
+   - "No Winner" bar (if present in data) is shown in orange (#FFA500) to highlight interactions without winners
+   - If selected item not found, uses light blue as fallback color
+   - X-axis labels are hidden to avoid clutter, scope level shown as x-axis title
+   - "No Winner" data is calculated and added by get_win_distribution_data() when all_interactions parameter is provided
+
+   .. rubric:: Examples
+
+   >>> scope_config = get_scope_config("Service", "Cards", "MyAction")
+   >>> fig, plot_data = create_win_distribution_plot(
+   ...     distribution_data,
+   ...     "new_win_count",
+   ...     scope_config,
+   ...     "After Lever Adjustment",
+   ...     "New Win Count"
+   ... )
+
+

@@ -1,0 +1,170 @@
+pdstools.adm.trees._nodes
+=========================
+
+.. py:module:: pdstools.adm.trees._nodes
+
+.. autoapi-nested-parse::
+
+   Tree primitives: split parsing, node dataclass, traversal helpers.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   pdstools.adm.trees._nodes.SplitOperator
+   pdstools.adm.trees._nodes._SPLIT_OPERATORS
+   pdstools.adm.trees._nodes._SPLIT_RE
+   pdstools.adm.trees._nodes._BOOSTER_PATHS
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.adm.trees._nodes.Split
+   pdstools.adm.trees._nodes.Node
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.adm.trees._nodes.parse_split
+   pdstools.adm.trees._nodes._iter_nodes
+   pdstools.adm.trees._nodes._traverse
+
+
+Module Contents
+---------------
+
+.. py:data:: SplitOperator
+
+.. py:data:: _SPLIT_OPERATORS
+   :type:  frozenset[str]
+
+.. py:data:: _SPLIT_RE
+
+.. py:class:: Split
+
+   A parsed tree split condition.
+
+   .. attribute:: variable
+
+      Predictor name being split on.
+
+      :type: str
+
+   .. attribute:: operator
+
+      Comparison operator: ``"<"`` and ``">"`` for numeric thresholds,
+      ``"=="`` for single-category equality, ``"in"`` for set membership,
+      ``"is"`` for missing-value checks.
+
+      :type: SplitOperator
+
+   .. attribute:: value
+
+      Right-hand side of the split.  ``float`` for numeric thresholds,
+      ``tuple[str, ...]`` for ``in``-splits, ``str`` for ``==``/``is``.
+
+      :type: float | str | tuple[str, ...]
+
+   .. attribute:: raw
+
+      Original split string, useful for diagnostics or display.
+
+      :type: str
+
+
+   .. py:attribute:: variable
+      :type:  str
+
+
+   .. py:attribute:: operator
+      :type:  SplitOperator
+
+
+   .. py:attribute:: value
+      :type:  float | str | tuple[str, Ellipsis]
+
+
+   .. py:attribute:: raw
+      :type:  str
+
+
+   .. py:property:: is_numeric
+      :type: bool
+
+
+
+   .. py:property:: is_symbolic
+      :type: bool
+
+
+
+.. py:function:: parse_split(raw: str) -> Split
+
+   Parse a tree-split string into a :class:`Split`.
+
+   .. rubric:: Examples
+
+   >>> parse_split("Age < 42.5").operator
+   '<'
+   >>> sorted(parse_split("Color in { red, blue }").value)
+   ['blue', 'red']
+   >>> parse_split("Status is Missing").value
+   'Missing'
+
+
+.. py:class:: Node
+
+   A single node in an AGB tree.
+
+   All nodes carry a ``score`` (the leaf prediction or root prior).
+   Internal nodes additionally carry a parsed :class:`Split` and a
+   ``gain``.  Leaves have ``split=None`` and ``gain=0.0``.
+
+
+   .. py:attribute:: depth
+      :type:  int
+
+
+   .. py:attribute:: score
+      :type:  float
+
+
+   .. py:attribute:: is_leaf
+      :type:  bool
+
+
+   .. py:attribute:: split
+      :type:  Split | None
+
+
+   .. py:attribute:: gain
+      :type:  float
+
+
+.. py:function:: _iter_nodes(tree: dict, depth: int = 1) -> collections.abc.Iterator[Node]
+
+   Yield every node in a tree in pre-order, root first.
+
+   Single source of truth for tree traversal.  All metric computations
+   consume this iterator instead of reimplementing recursion.
+
+
+.. py:data:: _BOOSTER_PATHS
+   :type:  tuple[tuple[str | int, Ellipsis], Ellipsis]
+   :value: (('model', 'boosters', 0, 'trees'), ('model', 'model', 'boosters', 0, 'trees'), ('model',...
+
+
+.. py:function:: _traverse(d: Any, path: tuple) -> Any
+
+   Walk a nested dict/list using the given key/index path; raise KeyError on miss.
+
+

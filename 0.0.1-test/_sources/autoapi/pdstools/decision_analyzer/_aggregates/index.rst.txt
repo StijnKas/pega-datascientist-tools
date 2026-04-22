@@ -1,0 +1,278 @@
+pdstools.decision_analyzer._aggregates
+======================================
+
+.. py:module:: pdstools.decision_analyzer._aggregates
+
+.. autoapi-nested-parse::
+
+   Aggregation namespace for :class:`DecisionAnalyzer`.
+
+   Methods in this module are exposed via ``da.aggregates.<method>``.  They
+   encapsulate the data-shaping queries that turn the pre-aggregated views
+   into the frames consumed by the plot layer and the Streamlit pages.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer._aggregates.Aggregates
+
+
+Module Contents
+---------------
+
+.. py:class:: Aggregates(da: pdstools.decision_analyzer.DecisionAnalyzer.DecisionAnalyzer)
+
+   Aggregation queries over the pre-aggregated views.
+
+   Accessed via :attr:`DecisionAnalyzer.aggregates`.
+
+
+   .. py:attribute:: da
+
+
+   .. py:method:: aggregate_remaining_per_stage(df: polars.LazyFrame, group_by_columns: list[str], aggregations: list[polars.Expr] | None = None) -> polars.LazyFrame
+
+      Workhorse function to convert the raw Decision Analyzer data (filter view) to
+      the aggregates remaining per stage, ensuring all stages are represented.
+
+
+
+   .. py:method:: get_distribution_data(stage: str, grouping_levels: str | list[str], additional_filters: polars.Expr | list[polars.Expr] | None = None) -> polars.LazyFrame
+
+      Distribution of decisions by grouping columns at a given stage.
+
+      :param stage: Stage to filter on.
+      :type stage: str
+      :param grouping_levels: Column(s) to group by (e.g. ``"Action"`` or ``["Channel", "Action"]``).
+      :type grouping_levels: str or list of str
+      :param additional_filters: Extra filters applied before aggregation.
+      :type additional_filters: pl.Expr or list of pl.Expr, optional
+
+      :returns: Columns from *grouping_levels* plus ``Decisions``, sorted descending.
+      :rtype: pl.LazyFrame
+
+
+
+   .. py:method:: get_funnel_data(scope: str, additional_filters: polars.Expr | list[polars.Expr] | None = None) -> tuple[polars.LazyFrame, polars.DataFrame, polars.DataFrame]
+
+
+   .. py:method:: get_decisions_without_actions_data(additional_filters: polars.Expr | list[polars.Expr] | None = None) -> polars.DataFrame
+
+      Per-stage count of interactions newly left with no remaining actions.
+
+      Returns a DataFrame with columns [self.da.level, "decisions_without_actions"],
+      sorted in pipeline order. For each stage X, the value is the number of
+      interactions that lose their final remaining action at stage X.
+
+
+
+   .. py:method:: get_funnel_summary(available_df: polars.LazyFrame, passing_df: polars.DataFrame, additional_filters: polars.Expr | list[polars.Expr] | None = None) -> polars.DataFrame
+
+      Per-stage summary: Available, Passing, Filtered actions and Decisions.
+
+      The table matches the funnel chart: it starts with a synthetic
+      "Available Actions" row and excludes the Output stage.
+
+      :param available_df: First element returned by ``get_funnel_data`` (actions entering each stage).
+      :type available_df: pl.LazyFrame
+      :param passing_df: Second element returned by ``get_funnel_data`` (actions exiting each stage).
+      :type passing_df: pl.DataFrame
+      :param additional_filters: Same filters used when calling ``get_funnel_data``.
+      :type additional_filters: optional
+
+      :returns: One row per stage in pipeline order with raw counts first,
+                then per-decision averages.
+      :rtype: pl.DataFrame
+
+
+
+   .. py:method:: get_optionality_data(df: polars.LazyFrame | None = None, by_day: bool = False) -> polars.LazyFrame
+
+      Average number of actions per stage, optionally broken down by day.
+
+      Computes per-interaction action counts at each stage using
+      ``aggregate_remaining_per_stage``, then aggregates into a histogram.
+
+      :param df: Input data.  Defaults to :attr:`sample`.
+      :type df: pl.LazyFrame, optional
+      :param by_day: If True, include ``"day"`` in the grouping for trend analysis.
+                     When False, zero-action rows are injected for stages where some
+                     interactions have no remaining actions.
+      :type by_day: bool, default False
+
+      :rtype: pl.LazyFrame
+
+
+
+   .. py:method:: get_optionality_funnel(df: polars.LazyFrame | None = None) -> polars.LazyFrame
+
+      Optionality funnel: interaction counts bucketed by available-action count.
+
+      Buckets action counts into 0–6 and 7+, then counts interactions per
+      stage and bucket.  Used by the optionality funnel chart.
+
+      :param df: Input data.  Defaults to :attr:`sample`.
+      :type df: pl.LazyFrame, optional
+
+      :rtype: pl.LazyFrame
+
+
+
+   .. py:method:: get_action_variation_data(stage: str, color_by: str | None = None) -> polars.LazyFrame
+
+      Get action variation data, optionally broken down by a categorical dimension.
+
+      Args:
+          stage: The stage to analyze
+          color_by: Optional categorical column to break down the variation by.
+                   Can use "Channel/Direction" to combine Channel and Direction columns.
+
+
+
+   .. py:method:: get_offer_variability_stats(stage: str) -> dict[str, float]
+
+      Summary statistics for action variation at a stage.
+
+      :param stage: Stage to analyse.
+      :type stage: str
+
+      :returns: ``n90`` — number of actions covering 90 % of decisions.
+                ``gini`` — Gini coefficient of decision concentration.
+      :rtype: dict
+
+
+
+   .. py:method:: get_offer_quality(df: polars.LazyFrame, group_by: str | list[str]) -> polars.LazyFrame
+
+      Cumulative offer-quality breakdown across stages.
+
+      Takes a filtered-action-counts frame (from :meth:`filtered_action_counts`)
+      and converts it to a remaining-per-stage view, joining in customers
+      that have zero actions so they are counted as well.
+
+      :param df: Filtered action counts with columns ``no_of_offers``,
+                 ``new_models``, ``poor_propensity_offers``, etc.
+      :type df: pl.LazyFrame
+      :param group_by: Columns to group by (e.g. ``["Interaction ID"]``).
+      :type group_by: str or list of str
+
+      :returns: Per-stage quality classification with boolean flag columns
+                (``has_no_offers``, ``atleast_one_relevant_action``, etc.).
+      :rtype: pl.LazyFrame
+
+
+
+   .. py:method:: filtered_action_counts(groupby_cols: list[str], propensity_th: float | None = None, priority_th: float | None = None, additional_filters: polars.Expr | list[polars.Expr] | None = None) -> polars.LazyFrame
+
+      Return action counts from the sample, optionally classified by propensity/priority thresholds.
+
+      :param groupby_cols: Column names to group by.
+      :type groupby_cols: list of str
+      :param propensity_th: Propensity threshold for classifying offers.
+      :type propensity_th: float, optional
+      :param priority_th: Priority threshold for classifying offers.
+      :type priority_th: float, optional
+      :param additional_filters: Extra filters applied to the sample (e.g. channel filter).
+      :type additional_filters: pl.Expr or list[pl.Expr], optional
+
+      :returns: Aggregated action counts per group, with quality buckets when
+                both thresholds are provided.
+      :rtype: pl.LazyFrame
+
+
+
+   .. py:method:: get_trend_data(stage: str = 'AvailableActions', scope: Literal['Group', 'Issue', 'Action'] | None = 'Group', additional_filters: polars.Expr | list[polars.Expr] | None = None) -> polars.DataFrame
+
+      Daily trend of unique decisions from a given stage onward.
+
+      :param stage: Starting stage; all stages from this point onward are included.
+      :type stage: str, default "AvailableActions"
+      :param scope: Optional grouping dimension.  If ``None``, returns totals by day.
+      :type scope: {"Group", "Issue", "Action"} or None, default "Group"
+      :param additional_filters: Extra filters applied to the sample.
+      :type additional_filters: pl.Expr or list of pl.Expr, optional
+
+      :returns: Columns: ``day``, optionally *scope*, and ``Decisions``.
+      :rtype: pl.DataFrame
+
+
+
+   .. py:method:: get_filter_component_data(top_n: int, additional_filters: polars.Expr | list[polars.Expr] | None = None) -> polars.DataFrame
+
+      Top-N filter components per stage, ranked by filtered-decision count.
+
+      :param top_n: Maximum number of components to return per stage.
+      :type top_n: int
+      :param additional_filters: Extra filters applied before aggregation.
+      :type additional_filters: pl.Expr or list of pl.Expr, optional
+
+      :returns: Columns include the stage level, Component Name, and
+                Filtered Decisions.
+      :rtype: pl.DataFrame
+
+
+
+   .. py:method:: get_component_action_impact(top_n: int = 10, scope: str = 'Action', additional_filters: polars.Expr | list[polars.Expr] | None = None) -> polars.DataFrame
+
+      Per-component breakdown of which items are filtered and how many.
+
+      For each component, returns the top-N items (at the chosen scope
+      granularity) it filters out. The scope controls whether the breakdown
+      is at Issue, Group, or Action level.
+
+      :param top_n: Maximum number of items to return per component.
+      :type top_n: int, default 10
+      :param scope: Granularity level: ``"Issue"``, ``"Group"``, or ``"Action"``.
+      :type scope: str, default "Action"
+      :param additional_filters: Extra filters to apply before aggregation.
+      :type additional_filters: pl.Expr or list of pl.Expr, optional
+
+      :returns: Columns include Component Name, StageGroup, scope columns, and
+                Filtered Decisions. Sorted by component then descending count.
+      :rtype: pl.DataFrame
+
+
+
+   .. py:method:: get_component_drilldown(component_name: str, scope: str = 'Action', additional_filters: polars.Expr | list[polars.Expr] | None = None, sort_by: str = 'Filtered Decisions') -> polars.DataFrame
+
+      Deep-dive into a single filter component showing dropped actions and
+      their potential value.
+
+      Since scoring columns (Priority, Value, Propensity) are typically null
+      on FILTERED_OUT rows, this method derives the action's "potential value"
+      by looking up average scores from rows where the same action survives
+      (non-null Priority/Value). This gives the "value of what's being
+      dropped" perspective.
+
+      :param component_name: The Component Name to drill into.
+      :type component_name: str
+      :param scope: Granularity level: ``"Issue"``, ``"Group"``, or ``"Action"``.
+      :type scope: str, default "Action"
+      :param additional_filters: Extra filters to apply before aggregation.
+      :type additional_filters: pl.Expr or list of pl.Expr, optional
+      :param sort_by: Column to sort results by (descending).
+      :type sort_by: str, default "Filtered Decisions"
+
+      :returns: Columns include scope columns, Filtered Decisions,
+                avg_Priority, avg_Value, avg_Propensity, Component Type (if
+                available).
+      :rtype: pl.DataFrame
+
+
+
+   .. py:method:: get_ab_test_results() -> polars.DataFrame
+
+      A/B test summary: control vs test counts and control percentage per stage.
+
+      :returns: One row per stage with columns for Control, Test counts and
+                Control Percentage. Rows preserve the canonical
+                ``AvailableNBADStages`` order (stages absent from the data are
+                omitted).
+      :rtype: pl.DataFrame
+
+
+

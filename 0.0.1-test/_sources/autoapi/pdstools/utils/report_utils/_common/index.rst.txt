@@ -1,0 +1,24 @@
+pdstools.utils.report_utils._common
+===================================
+
+.. py:module:: pdstools.utils.report_utils._common
+
+.. autoapi-nested-parse::
+
+   Shared module-level state for the ``report_utils`` submodules.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   pdstools.utils.report_utils._common.logger
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+

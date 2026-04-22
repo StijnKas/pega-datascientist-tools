@@ -1,0 +1,39 @@
+pdstools.utils.cdh_utils._misc
+==============================
+
+.. py:module:: pdstools.utils.cdh_utils._misc
+
+.. autoapi-nested-parse::
+
+   Miscellaneous helpers that don't belong to a single concern.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.utils.cdh_utils._misc.safe_flatten_list
+   pdstools.utils.cdh_utils._misc.legend_color_order
+
+
+Module Contents
+---------------
+
+.. py:function:: safe_flatten_list(alist: list | None, extras: list | None = None) -> list | None
+
+   Flatten one level of ``alist``, drop ``None`` entries, and prepend ``extras``.
+
+   The result is order-preserving and de-duplicated. Strings are treated as
+   atoms (not iterated). Both ``alist`` and ``extras`` are read-only — the
+   caller's lists are never mutated. Returns ``None`` when the result would
+   be empty so callers can use the truthiness as a "no grouping" signal.
+
+
+.. py:function:: legend_color_order(fig)
+
+   Orders legend colors alphabetically in order to provide pega color
+   consistency among different categories
+
+
