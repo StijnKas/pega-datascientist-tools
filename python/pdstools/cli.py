@@ -14,6 +14,10 @@ from importlib import resources
 
 from pdstools import __version__
 
+# Subcommands recognised by the pre-parser. Anything else (including a
+# bare app name) is routed to ``run`` for backwards compatibility.
+_SUBCOMMANDS = {"run", "doctor", "list"}
+
 # App configuration with display names and paths
 APPS = {
     "health_check": {
@@ -44,6 +48,13 @@ def create_parser():
     )
 
     parser.add_argument("--version", action="version", version=f"pdstools {__version__}")
+    parser.add_argument(
+        "--list",
+        dest="list_apps",
+        action="store_true",
+        default=False,
+        help="List available apps (one per line, tab-separated key/name/aliases) and exit.",
+    )
 
     # Create help text with display names and aliases
     app_choices = list(APPS.keys()) + list(ALIASES.keys())
@@ -169,11 +180,51 @@ def check_for_typos(unknown_args, known_args):
     return likely_typos
 
 
+def _aliases_for(app_key: str) -> list[str]:
+    return [a for a, full in ALIASES.items() if full == app_key]
+
+
+def list_apps() -> None:
+    """Print one line per app: ``<key>\\t<display_name>\\t<aliases>``."""
+    for key, info in APPS.items():
+        aliases = ",".join(_aliases_for(key))
+        print(f"{key}\t{info['display_name']}\t{aliases}")
+
+
+def doctor() -> None:
+    """Print environment health information for support diagnostics.
+
+    Thin wrapper over :func:`pdstools.show_versions` with all
+    diagnostic flags enabled. Exposed as the ``pdstools doctor`` CLI
+    subcommand so users can share their environment without writing
+    Python.
+    """
+    from .utils.show_versions import show_versions
+
+    show_versions(include_runtime_diagnostics=True)
+
+
 def main():
-    if len(sys.argv) > 1 and sys.argv[1] == "run":
+    # Formalised subcommand shape. Backwards-compat: ``pdstools [app]`` and
+    # bare ``pdstools`` (interactive) still work — anything that isn't a
+    # known subcommand is routed to ``run``.
+    if len(sys.argv) > 1 and sys.argv[1] in _SUBCOMMANDS:
+        sub = sys.argv[1]
+        if sub == "doctor":
+            doctor()
+            return
+        if sub == "list":
+            list_apps()
+            return
+        # ``run`` -> just strip and fall through to argparse
         del sys.argv[1]
+
     parser = create_parser()
     args, unknown = parser.parse_known_args()
+
+    if args.list_apps:
+        list_apps()
+        return
 
     # Resolve alias to full app name
     if args.app and args.app in ALIASES:
@@ -182,6 +233,7 @@ def main():
     # Check for likely typos in pdstools arguments
     known_pdstools_args = [
         "--version",
+        "--list",
         "--data-path",
         "--sample",
         "--filter",
@@ -216,6 +268,15 @@ def run(args, unknown):
         force=True,  # Override any existing config
     )
 
+    # Validate --data-path early so users get a clean error rather than
+    # an opaque crash inside Streamlit.
+    if args.data_path and not os.path.exists(args.data_path):
+        print(
+            f"Error: --data-path '{args.data_path}' does not exist.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
     try:
         from streamlit.web import cli as stcli
     except ImportError:
@@ -225,7 +286,28 @@ def run(args, unknown):
         )
         sys.exit(1)
 
-    # If no app is specified, prompt the user to choose
+    # If no app is specified, prompt the user to choose. Prefer the
+    # arrow-key picker (questionary, ships with the [app] extra); fall
+    # back to the numeric prompt only when questionary isn't installed
+    # or stdin isn't a TTY.
+    if args.app is None and sys.stdin.isatty():
+        try:
+            import questionary
+        except ImportError:
+            questionary = None  # type: ignore[assignment]
+        if questionary is not None:
+            choice = questionary.select(
+                "Select an app to run:",
+                choices=[questionary.Choice(title=APPS[k]["display_name"], value=k) for k in APPS],
+            ).ask()
+            # ask() returns None on Ctrl+C / Esc — treat that as "user
+            # asked to leave" rather than falling through to the numeric
+            # prompt (which would just re-ask the same question).
+            if choice is None:
+                print("Exiting...", flush=True)
+                sys.exit(0)
+            args.app = choice
+
     if args.app is None:
         app_list = list(APPS.keys())
         print("Available pdstools apps:", flush=True)

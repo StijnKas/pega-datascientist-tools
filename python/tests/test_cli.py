@@ -424,3 +424,236 @@ class TestRunInteractivePrompt:
                 with pytest.raises(SystemExit) as exc:
                     run(_make_args(app=None), [])
         assert exc.value.code == 0
+
+
+# ---------------------------------------------------------------------------
+# Questionary picker integration in run()
+# ---------------------------------------------------------------------------
+
+
+class TestRunQuestionaryPicker:
+    """Picker integration on TTY stdin uses questionary; non-TTY falls back."""
+
+    def test_falls_through_to_numeric_prompt_when_not_tty(self, monkeypatch):
+        # Force isatty False; the existing input() prompt must be used.
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+        fake_stcli = MagicMock()
+        fake_stcli.main.return_value = 0
+        fake_module = MagicMock()
+        fake_module.cli = fake_stcli
+        with patch.dict(
+            sys.modules,
+            {"streamlit": MagicMock(), "streamlit.web": fake_module},
+        ):
+            with patch("builtins.input", return_value="1"):
+                with patch.object(sys, "exit"):
+                    args = _make_args(app=None)
+                    run(args, [])
+        assert args.app == list(APPS.keys())[0]
+
+    def test_questionary_choice_sets_app(self, monkeypatch):
+        """When questionary returns a choice, run() launches that app."""
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+        fake_questionary = MagicMock()
+        fake_select = MagicMock()
+        fake_select.ask.return_value = "decision_analyzer"
+        fake_questionary.select.return_value = fake_select
+        fake_questionary.Choice = MagicMock(side_effect=lambda title, value: value)
+
+        fake_stcli = MagicMock()
+        fake_stcli.main.return_value = 0
+        fake_st_module = MagicMock()
+        fake_st_module.cli = fake_stcli
+        with patch.dict(
+            sys.modules,
+            {
+                "questionary": fake_questionary,
+                "streamlit": MagicMock(),
+                "streamlit.web": fake_st_module,
+            },
+        ):
+            with patch.object(sys, "exit"):
+                args = _make_args(app=None)
+                run(args, [])
+        assert args.app == "decision_analyzer"
+
+    def test_questionary_cancel_exits(self, monkeypatch):
+        """When questionary returns None (Ctrl+C / Esc), CLI exits cleanly."""
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+        fake_questionary = MagicMock()
+        fake_select = MagicMock()
+        fake_select.ask.return_value = None
+        fake_questionary.select.return_value = fake_select
+        fake_questionary.Choice = MagicMock(side_effect=lambda title, value: value)
+
+        with patch.dict(sys.modules, {"questionary": fake_questionary}):
+            with pytest.raises(SystemExit) as exc:
+                run(_make_args(app=None), [])
+        assert exc.value.code == 0
+
+    def test_questionary_missing_falls_back_to_numeric(self, monkeypatch):
+        """When questionary isn't installed, the numeric prompt runs."""
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+
+        # Make `import questionary` raise ImportError.
+        import builtins
+
+        real_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "questionary":
+                raise ImportError("simulated missing questionary")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+
+        fake_stcli = MagicMock()
+        fake_stcli.main.return_value = 0
+        fake_st_module = MagicMock()
+        fake_st_module.cli = fake_stcli
+        with patch.dict(
+            sys.modules,
+            {"streamlit": MagicMock(), "streamlit.web": fake_st_module},
+        ):
+            with patch("builtins.input", return_value="1"):
+                with patch.object(sys, "exit"):
+                    args = _make_args(app=None)
+                    run(args, [])
+        assert args.app == list(APPS.keys())[0]
+
+
+# ---------------------------------------------------------------------------
+# --data-path validation
+# ---------------------------------------------------------------------------
+
+
+class TestDataPathValidation:
+    def test_nonexistent_data_path_exits_2(self, capsys):
+        args = _make_args(data_path="/nonexistent/path/should/never/exist.parquet")
+        fake_stcli = MagicMock()
+        fake_module = MagicMock()
+        fake_module.cli = fake_stcli
+        with patch.dict(
+            sys.modules,
+            {"streamlit": MagicMock(), "streamlit.web": fake_module},
+        ):
+            with pytest.raises(SystemExit) as exc:
+                run(args, [])
+        assert exc.value.code == 2
+        captured = capsys.readouterr()
+        assert "does not exist" in captured.err
+
+    def test_existing_data_path_passes(self, tmp_path):
+        # Create a real file so the validation passes
+        f = tmp_path / "data.parquet"
+        f.write_text("dummy")
+        fake_stcli = MagicMock()
+        fake_stcli.main.return_value = 0
+        fake_module = MagicMock()
+        fake_module.cli = fake_stcli
+        with patch.dict(
+            sys.modules,
+            {"streamlit": MagicMock(), "streamlit.web": fake_module},
+        ):
+            with patch.object(sys, "exit"):
+                run(_make_args(data_path=str(f)), [])
+        # If we got here, no SystemExit(2) was raised.
+
+
+# ---------------------------------------------------------------------------
+# --list flag and 'list' subcommand
+# ---------------------------------------------------------------------------
+
+
+class TestListApps:
+    def test_list_flag_prints_apps(self, monkeypatch, capsys):
+        monkeypatch.setattr(sys, "argv", ["pdstools", "--list"])
+        with patch.object(cli_module, "run") as mock_run:
+            main()
+        mock_run.assert_not_called()
+        captured = capsys.readouterr()
+        for key, info in APPS.items():
+            assert key in captured.out
+            assert info["display_name"] in captured.out
+        # Tab-separated
+        for line in captured.out.strip().splitlines():
+            assert line.count("\t") == 2
+
+    def test_list_subcommand(self, monkeypatch, capsys):
+        monkeypatch.setattr(sys, "argv", ["pdstools", "list"])
+        with patch.object(cli_module, "run") as mock_run:
+            main()
+        mock_run.assert_not_called()
+        captured = capsys.readouterr()
+        assert "health_check" in captured.out
+
+    def test_aliases_in_list_output(self, monkeypatch, capsys):
+        monkeypatch.setattr(sys, "argv", ["pdstools", "list"])
+        with patch.object(cli_module, "run"):
+            main()
+        captured = capsys.readouterr()
+        # 'hc' is the alias for health_check
+        assert "hc" in captured.out
+
+
+# ---------------------------------------------------------------------------
+# doctor subcommand
+# ---------------------------------------------------------------------------
+
+
+class TestDoctor:
+    def test_doctor_subcommand_runs(self, monkeypatch, capsys):
+        monkeypatch.setattr(sys, "argv", ["pdstools", "doctor"])
+        with patch.object(cli_module, "run") as mock_run:
+            main()
+        mock_run.assert_not_called()
+        captured = capsys.readouterr()
+        assert "--- Version info ---" in captured.out
+        assert "pdstools:" in captured.out
+        assert "--- Dependencies ---" in captured.out
+        assert "--- Polars runtime ---" in captured.out
+        assert "rt64 runtime active:" in captured.out
+        assert "--- External tools ---" in captured.out
+        # At least one of the documented dependency groups should render.
+        assert "--- Dependency group:" in captured.out
+
+    def test_doctor_renders_not_installed_when_which_returns_none(self, monkeypatch, capsys):
+        from pdstools import cli as cli_mod
+
+        # Force shutil.which to return None so both quarto and pandoc are
+        # reported as 'not installed'.
+        import shutil
+
+        monkeypatch.setattr(shutil, "which", lambda _name: None)
+        cli_mod.doctor()
+        captured = capsys.readouterr()
+        assert "quarto: not installed" in captured.out
+        assert "pandoc: not installed" in captured.out
+
+
+# ---------------------------------------------------------------------------
+# Subcommand routing
+# ---------------------------------------------------------------------------
+
+
+class TestSubcommandRouting:
+    def test_run_subcommand_with_app(self, monkeypatch):
+        monkeypatch.setattr(sys, "argv", ["pdstools", "run", "hc"])
+        with patch.object(cli_module, "run") as mock_run:
+            main()
+        args, _ = mock_run.call_args[0]
+        assert args.app == "health_check"
+
+    def test_bare_app_still_works(self, monkeypatch):
+        monkeypatch.setattr(sys, "argv", ["pdstools", "decision_analyzer"])
+        with patch.object(cli_module, "run") as mock_run:
+            main()
+        args, _ = mock_run.call_args[0]
+        assert args.app == "decision_analyzer"
+
+    def test_bare_pdstools_routes_to_run(self, monkeypatch):
+        monkeypatch.setattr(sys, "argv", ["pdstools"])
+        with patch.object(cli_module, "run") as mock_run:
+            main()
+        args, _ = mock_run.call_args[0]
+        assert args.app is None
