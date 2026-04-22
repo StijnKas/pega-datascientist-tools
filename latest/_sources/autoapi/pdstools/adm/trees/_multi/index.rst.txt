@@ -1,0 +1,154 @@
+pdstools.adm.trees._multi
+=========================
+
+.. py:module:: pdstools.adm.trees._multi
+
+.. autoapi-nested-parse::
+
+   The :class:`MultiTrees` collection — multiple snapshots of one config.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   pdstools.adm.trees._multi.logger
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.adm.trees._multi.MultiTrees
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:class:: MultiTrees
+
+   A collection of :class:`ADMTreesModel` snapshots indexed by timestamp.
+
+   Construct via :meth:`from_datamart`.
+
+
+   .. py:attribute:: trees
+      :type:  dict[str, pdstools.adm.trees._model.ADMTreesModel]
+
+
+   .. py:attribute:: model_name
+      :type:  str | None
+      :value: None
+
+
+
+   .. py:attribute:: context_keys
+      :type:  list | None
+      :value: None
+
+
+
+   .. py:method:: __repr__() -> str
+
+
+   .. py:method:: __getitem__(index: int | str) -> pdstools.adm.trees._model.ADMTreesModel
+
+      Return the :class:`ADMTreesModel` at ``index``.
+
+      Integer indices select by insertion order; string indices select
+      by snapshot timestamp.  Use :meth:`items` if you need both keys
+      and values together.
+
+
+
+   .. py:method:: __len__() -> int
+
+
+   .. py:method:: items()
+
+      Iterate ``(timestamp, model)`` pairs in insertion order.
+
+
+
+   .. py:method:: values()
+
+      Iterate :class:`ADMTreesModel` instances in insertion order.
+
+
+
+   .. py:method:: keys()
+
+      Iterate snapshot timestamps in insertion order.
+
+
+
+   .. py:method:: __iter__()
+
+
+   .. py:method:: __add__(other: MultiTrees | pdstools.adm.trees._model.ADMTreesModel) -> MultiTrees
+
+
+   .. py:property:: first
+      :type: pdstools.adm.trees._model.ADMTreesModel
+
+
+
+   .. py:property:: last
+      :type: pdstools.adm.trees._model.ADMTreesModel
+
+
+
+   .. py:method:: from_datamart(df: polars.DataFrame, n_threads: int = 1, configuration: str | None = None) -> MultiTrees
+      :classmethod:
+
+
+      Decode every Modeldata blob in ``df`` for a single configuration.
+
+      Returns one :class:`MultiTrees` containing one
+      :class:`ADMTreesModel` per snapshot.
+
+      :param df: Datamart slice.  Must contain ``Modeldata``, ``SnapshotTime``
+                 and ``Configuration`` columns and cover exactly one
+                 Configuration.  Use :meth:`from_datamart_grouped` if ``df``
+                 spans multiple configurations.
+      :type df: pl.DataFrame
+      :param n_threads: Worker count for parallel base64+zlib decoding.
+      :type n_threads: int
+      :param configuration: Optional explicit Configuration name; required if ``df``
+                            doesn't already contain a single Configuration.
+      :type configuration: str | None
+
+
+
+   .. py:method:: from_datamart_grouped(df: polars.DataFrame, n_threads: int = 1) -> dict[str, MultiTrees]
+      :classmethod:
+
+
+      Decode every Modeldata blob in ``df``, grouped by Configuration.
+
+      Returns a mapping of configuration name to :class:`MultiTrees`.
+      Use :meth:`from_datamart` instead when the input has only one
+      configuration.
+
+
+
+   .. py:method:: _decode_datamart_frame(df: polars.DataFrame, n_threads: int = 1) -> list[tuple[str, str, pdstools.adm.trees._model.ADMTreesModel]]
+      :staticmethod:
+
+
+      Decode every blob in ``df`` and return ``(config, timestamp, model)`` rows.
+
+
+
+   .. py:method:: compute_over_time(predictor_categorization: collections.abc.Callable | None = None) -> polars.DataFrame
+
+      Return per-tree categorisation counts across snapshots, with a
+      ``SnapshotTime`` column per row.
+
+
+

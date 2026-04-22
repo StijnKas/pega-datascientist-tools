@@ -1,0 +1,574 @@
+pdstools.pega_io
+================
+
+.. py:module:: pdstools.pega_io
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /autoapi/pdstools/pega_io/API/index
+   /autoapi/pdstools/pega_io/Anonymization/index
+   /autoapi/pdstools/pega_io/File/index
+   /autoapi/pdstools/pega_io/S3/index
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.pega_io.Anonymization
+   pdstools.pega_io.S3Data
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.pega_io.get_token
+   pdstools.pega_io.cache_to_file
+   pdstools.pega_io.find_files
+   pdstools.pega_io.get_latest_file
+   pdstools.pega_io.read_data
+   pdstools.pega_io.read_dataflow_output
+   pdstools.pega_io.read_ds_export
+   pdstools.pega_io.read_multi_zip
+   pdstools.pega_io.read_zipped_file
+
+
+Package Contents
+----------------
+
+.. py:class:: Anonymization(path_to_files: str, temporary_path: str | None = None, output_file: str = 'anonymised.parquet', skip_columns_with_prefix: list[str] | tuple[str, Ellipsis] | None = None, batch_size: int = 500, file_limit: int | None = None)
+
+   Anonymise Pega datasets (in particular, the Historical Dataset).
+
+   Numeric columns are min-max scaled to ``[0, 1]``.  Symbolic columns
+   are hashed with SHA-256.  Columns whose name starts with one of the
+   ``skip_columns_with_prefix`` values are passed through unchanged
+   (by default ``Context_*`` and ``Decision_*``).
+
+   Once constructed, call :meth:`anonymize` to run the pipeline.  All
+   file system work happens then; ``__init__`` is pure.
+
+   :param path_to_files: Glob pattern matching the input files, e.g. ``"~/Downloads/*.json"``.
+   :type path_to_files: str
+   :param temporary_path: Directory used for intermediate parquet chunks.  Defaults to a
+                          fresh ``tempfile.mkdtemp`` directory created on first use.
+   :type temporary_path: str, optional
+   :param output_file: Path to write the final anonymised parquet file.
+   :type output_file: str, default="anonymised.parquet"
+   :param skip_columns_with_prefix: Column-name prefixes to leave unchanged. Defaults to
+                                    ``("Context_", "Decision_")``.
+   :type skip_columns_with_prefix: list[str], optional
+   :param batch_size: Number of input files combined per intermediate parquet chunk.
+   :type batch_size: int, default=500
+   :param file_limit: Process at most this many files (useful for testing).
+   :type file_limit: int, optional
+
+   .. rubric:: Examples
+
+   >>> Anonymization(
+   ...     path_to_files="~/Downloads/*.json",
+   ...     batch_size=1000,
+   ...     file_limit=10,
+   ... ).anonymize()
+
+
+   .. py:attribute:: path_to_files
+
+
+   .. py:attribute:: _temp_path
+      :type:  str | None
+      :value: None
+
+
+
+   .. py:attribute:: output_file
+      :value: 'anonymised.parquet'
+
+
+
+   .. py:attribute:: skip_col_prefix
+      :type:  tuple[str, Ellipsis]
+      :value: ('Context_', 'Decision_')
+
+
+
+   .. py:attribute:: batch_size
+      :value: 500
+
+
+
+   .. py:attribute:: file_limit
+      :value: None
+
+
+
+   .. py:property:: temp_path
+      :type: str
+
+
+      Lazily create (and cache) the temp directory.
+
+
+   .. py:method:: anonymize(verbose: bool = True) -> None
+
+      Run the full anonymisation pipeline.
+
+      :param verbose: Print progress messages between stages.
+      :type verbose: bool, default=True
+
+
+
+   .. py:method:: min_max(column_name: str, value_range: list[dict[str, float]]) -> polars.Expr
+      :staticmethod:
+
+
+      Return a min-max scaling expression for ``column_name``.
+
+      :param column_name: Column to normalise.
+      :type column_name: str
+      :param value_range: Single-element list whose dict has ``"min"`` and ``"max"``
+                          keys, matching the shape produced by Polars when collecting
+                          a struct of ``min``/``max`` aggregations.
+      :type value_range: list[dict[str, float]]
+
+      :returns: ``(col - min) / (max - min)``, or the literal ``0.0`` when
+                min == max.
+      :rtype: pl.Expr
+
+
+
+   .. py:method:: _infer_types(df: polars.DataFrame) -> dict[str, str]
+      :staticmethod:
+
+
+      Classify each column as ``"numeric"`` or ``"symbolic"``.
+
+      A column is considered numeric if its values can be cast to
+      ``Float64`` (after replacing empty strings with null).
+
+
+
+   .. py:method:: chunker(files: list[str], size: int) -> collections.abc.Iterator[list[str]]
+      :staticmethod:
+
+
+      Yield successive ``size``-element slices of ``files``.
+
+
+
+   .. py:method:: chunk_to_parquet(files: list[str], i: int) -> str
+
+      Read a chunk of NDJSON files and write them as a parquet file.
+
+      :param files: NDJSON file paths to combine.
+      :type files: list[str]
+      :param i: Chunk index (used in the output filename).
+      :type i: int
+
+      :returns: Path to the parquet file produced.
+      :rtype: str
+
+
+
+   .. py:method:: preprocess(verbose: bool) -> list[str]
+
+      Convert input files into intermediate parquet chunks.
+
+      :param verbose: Show a tqdm progress bar over chunks (if installed).
+      :type verbose: bool
+
+      :returns: Paths to the temporary chunked parquet files.
+      :rtype: list[str]
+
+
+
+   .. py:method:: process(chunked_files: list[str], verbose: bool = True) -> None
+
+      Hash, scale, and write the final anonymised parquet file.
+
+      :param chunked_files: Intermediate parquet files produced by :meth:`preprocess`.
+      :type chunked_files: list[str]
+      :param verbose: Print which columns will be hashed / scaled / preserved.
+      :type verbose: bool, default=True
+
+      :raises MissingDependenciesException: When ``polars-hash`` is not installed.
+
+
+
+.. py:function:: get_token(credential_file: os.PathLike, verify: bool = True) -> str
+
+   Fetch an OAuth2 access token for a Pega Platform instance.
+
+   After configuring OAuth2 in Dev Studio, download the credential
+   file and point this helper at it.
+
+   :param credential_file: Path to the credential file downloaded from Pega.
+   :type credential_file: PathLike
+   :param verify: Whether to verify TLS certificates.  Set to ``False`` only for
+                  unsecured test endpoints.
+   :type verify: bool, default=True
+
+   :returns: The bearer access token.
+   :rtype: str
+
+
+.. py:function:: cache_to_file(df: polars.DataFrame | polars.LazyFrame, path: str | os.PathLike, name: str, cache_type: Literal['parquet'] = 'parquet', compression: polars._typing.ParquetCompression = 'uncompressed') -> pathlib.Path
+                 cache_to_file(df: polars.DataFrame | polars.LazyFrame, path: str | os.PathLike, name: str, cache_type: Literal['ipc'] = 'ipc', compression: polars._typing.IpcCompression = 'uncompressed') -> pathlib.Path
+
+   Very simple convenience function to cache data.
+   Caches in arrow format for very fast reading.
+
+   :param df: The dataframe to cache
+   :type df: pl.DataFrame
+   :param path: The location to cache the data
+   :type path: os.PathLike
+   :param name: The name to give to the file
+   :type name: str
+   :param cache_type: The type of file to export.
+                      Default is IPC, also supports parquet
+   :type cache_type: str
+   :param compression: The compression to apply, default is uncompressed
+   :type compression: str
+
+   :returns: The filepath to the cached file
+   :rtype: os.PathLike
+
+
+.. py:function:: find_files(files_dir: collections.abc.Iterable[str], target: str) -> list[str]
+
+   Filter a list of filenames down to those matching a Pega snapshot target.
+
+   :param files_dir: Filenames to scan (typically the contents of a directory).
+   :type files_dir: Iterable[str]
+   :param target: One of ``"model_data"``, ``"predictor_data"``,
+                  ``"prediction_data"``, ``"value_finder"``.
+   :type target: str
+
+   :returns: Filenames whose names match one of the known patterns for ``target``.
+   :rtype: list[str]
+
+   :raises ValueError: If ``target`` is not one of the supported names.
+
+
+.. py:function:: get_latest_file(path: str | os.PathLike, target: str) -> str | None
+
+   Find the most recent Pega snapshot file matching a target type.
+
+   Searches ``path`` for files whose name matches one of the well-known
+   Pega snapshot patterns for ``target``, then returns the most recent
+   one (parsed from the filename's GMT timestamp, falling back to file
+   ctime).  Supports ``.json``, ``.csv``, ``.zip``, ``.parquet``,
+   ``.feather``, ``.ipc``, ``.arrow``.
+
+   :param path: Directory to search.
+   :type path: str or os.PathLike
+   :param target: One of ``"model_data"``, ``"predictor_data"``,
+                  ``"prediction_data"``, ``"value_finder"``.
+   :type target: str
+
+   :returns: Full path to the most recent matching file, or ``None`` when no
+             matching file exists.
+   :rtype: str or None
+
+   :raises ValueError: If ``target`` is not one of the supported names.
+
+
+.. py:function:: read_data(path: str | pathlib.Path | io.BytesIO) -> polars.LazyFrame
+
+   Read data from various file formats and sources.
+
+   Supports multiple formats: parquet, csv, arrow, feather, ndjson, json, xlsx, xls, zip, tar, tar.gz, tgz, gz.
+   Handles both individual files and directories (including Hive-partitioned structures).
+   Archives (zip, tar) are automatically extracted to temporary directories.
+   Gzip files (.gz) are automatically decompressed.
+
+   :param path: Path to a data file, archive, directory, or BytesIO object.
+                When using BytesIO (e.g., from Streamlit file uploads), the object must have
+                a 'name' attribute indicating the file extension.
+                Supported formats:
+                - Parquet files or directories
+                - CSV files
+                - Arrow/IPC/Feather files
+                - NDJSON/JSONL files
+                - Excel files (.xlsx, .xls — requires the optional ``fastexcel`` package)
+                - GZIP compressed files (.gz, .json.gz, .csv.gz, etc.)
+                - ZIP archives including Pega Dataset Export format (extracted automatically)
+                - TAR archives including .tar.gz and .tgz (extracted automatically)
+                - Hive-partitioned directories (scanned recursively)
+   :type path: str, Path, or BytesIO
+
+   :returns: Lazy DataFrame ready for processing. Use `.collect()` to materialize.
+   :rtype: pl.LazyFrame
+
+   :raises ValueError: If no supported data files are found in a directory, or if the file
+       type is not supported.
+
+   .. rubric:: Examples
+
+   Read a parquet file:
+
+   >>> df = read_data("data.parquet")
+
+   Read from a ZIP archive:
+
+   >>> df = read_data("export.zip")
+
+   Read from a TAR archive:
+
+   >>> df = read_data("export.tar.gz")
+
+   Read from a Hive-partitioned directory:
+
+   >>> df = read_data("pxDecisionTime_day=08/")
+
+   Read a Pega Dataset Export file:
+
+   >>> df = read_data("Data-Decision-ADM-ModelSnapshot_pyModelSnapshots_20210101T010000_GMT.zip")
+
+   Read a gzip-compressed file:
+
+   >>> df = read_data("export.json.gz")
+   >>> df = read_data("data.csv.gz")
+
+   Read from a BytesIO object (e.g., Streamlit upload):
+
+   >>> from io import BytesIO
+   >>> uploaded_file = ...  # BytesIO with 'name' attribute
+   >>> df = read_data(uploaded_file)
+
+   Read a Feather file:
+
+   >>> df = read_data("data.feather")
+
+   .. rubric:: Notes
+
+   **Pega Dataset Export Support:**
+   This function fully supports Pega Dataset Export format (e.g., Data-Decision-ADM-*.zip,
+   Data-DM-*.zip). These are zip archives containing a data.json file (NDJSON format) and
+   optionally a META-INF/MANIFEST.mf metadata file. The function automatically extracts
+   and reads the data.json file.
+
+   **Other Notes:**
+   - Archives are extracted to temporary directories with automatic cleanup
+   - OS artifacts (__MACOSX, .DS_Store, ._* files) are automatically removed
+   - For directories, the first supported file type found determines the format
+
+
+.. py:function:: read_dataflow_output(files: collections.abc.Iterable[str] | str, cache_file_name: str | None = None, *, cache_directory: str | os.PathLike = 'cache')
+
+   Read the file output of a Pega dataflow run.
+
+   By default, the Prediction Studio data export also uses dataflows,
+   so this function applies to those exports as well.
+
+   Dataflow nodes write many small ``.json.gz`` files for each
+   partition.  This helper takes a list of files (or a glob pattern)
+   and concatenates them into a single :class:`polars.LazyFrame`.
+
+   If ``cache_file_name`` is supplied, results are cached as a parquet
+   file.  Subsequent calls only read files that aren't already in the
+   cache, then update it.
+
+   :param files: File paths to read.  If a string is provided, it's expanded with
+                 :func:`glob.glob`.
+   :type files: str or Iterable[str]
+   :param cache_file_name: If given, cache results to ``<cache_directory>/<cache_file_name>.parquet``.
+   :type cache_file_name: str, optional
+   :param cache_directory: Directory to store the parquet cache.
+   :type cache_directory: str or os.PathLike, keyword-only, default="cache"
+
+   .. rubric:: Examples
+
+   >>> from glob import glob
+   >>> read_dataflow_output(files=glob("model_snapshots_*.json"))
+
+
+.. py:function:: read_ds_export(filename: str | os.PathLike | io.BytesIO, path: str | os.PathLike = '.', *, infer_schema_length: int = 10000, separator: str = ',', ignore_errors: bool = False) -> polars.LazyFrame | None
+
+   Read Pega dataset exports with additional capabilities.
+
+   Extends :func:`read_data` with:
+
+   - Smart file finding: accepts ``"model_data"`` or ``"predictor_data"``
+     and searches for matching files (ADM-specific).
+   - URL downloads: fetches remote files when local paths are not found
+     (useful for demos and examples).
+   - Schema overrides: applies Pega-specific type corrections (e.g.
+     ``PYMODELID`` as string).
+
+   For simple file reading without these features, use :func:`read_data`.
+
+   :param filename: File identifier. May be a full file path, a generic name like
+                    ``"model_data"`` / ``"predictor_data"`` (triggers smart search),
+                    or a :class:`io.BytesIO` object (delegates to :func:`read_data`).
+   :type filename: str, os.PathLike, or BytesIO
+   :param path: Directory to search for files (ignored for BytesIO or full paths).
+   :type path: str or os.PathLike, default='.'
+   :param infer_schema_length: Rows to scan for schema inference (CSV/JSON).
+   :type infer_schema_length: int, keyword-only, default=10000
+   :param separator: CSV delimiter.
+   :type separator: str, keyword-only, default=","
+   :param ignore_errors: Whether to continue on parse errors (CSV).
+   :type ignore_errors: bool, keyword-only, default=False
+
+   :returns: Lazy dataframe, or ``None`` if the file could not be located.
+   :rtype: pl.LazyFrame or None
+
+   .. rubric:: Examples
+
+   >>> df = read_ds_export("model_data", path="data/ADMData")
+   >>> df = read_ds_export("ModelSnapshot_20210101.json", path="data")
+   >>> df = read_ds_export(
+   ...     "ModelSnapshot.zip", path="https://example.com/exports"
+   ... )
+   >>> df = read_ds_export("export.csv", infer_schema_length=200000)
+
+
+.. py:function:: read_multi_zip(files: collections.abc.Iterable[str], *, add_original_file_name: bool = False, verbose: bool = True) -> polars.LazyFrame
+
+   Read multiple gzip-compressed NDJSON files and concatenate them.
+
+   :param files: Paths to the ``.json.gz`` files to read.
+   :type files: Iterable[str]
+   :param add_original_file_name: If True, add a ``file`` column recording each source path.
+   :type add_original_file_name: bool, keyword-only, default=False
+   :param verbose: Show a tqdm progress bar (if installed) and print a completion
+                   line when done.
+   :type verbose: bool, keyword-only, default=True
+
+   :returns: Concatenated lazy frame across all input files.
+   :rtype: pl.LazyFrame
+
+
+.. py:function:: read_zipped_file(file: str | io.BytesIO) -> tuple[io.BytesIO, str]
+
+   Read a Pega zipped NDJSON dataset export.
+
+   A Pega dataset export is a zip archive that contains a ``data.json``
+   file (NDJSON format) and optionally a ``META-INF/MANIFEST.mf``
+   metadata file.  This helper opens the zip, locates ``data.json``
+   (top-level or nested) and returns its bytes.
+
+   :param file: Path to the zip file, or an in-memory zip buffer.
+   :type file: str or BytesIO
+
+   :returns: A pair of ``(buffer, ".json")`` ready to be passed back into a
+             Polars reader.
+   :rtype: tuple[BytesIO, str]
+
+   :raises FileNotFoundError: If the archive does not contain a ``data.json`` entry.
+
+
+.. py:class:: S3Data(bucket_name: str, temp_dir: str = './s3_download')
+
+   Asynchronous helper for downloading Pega datasets from S3.
+
+   Use this when Prediction Studio is configured to export monitoring
+   tables to an S3 bucket: it downloads the partitioned ``.json.gz``
+   files into a local directory and (optionally) hands them off to
+   :class:`pdstools.adm.ADMDatamart`.
+
+   :param bucket_name: Name of the S3 bucket containing the dataset folder.
+   :type bucket_name: str
+   :param temp_dir: Directory where downloaded files are placed.  Should be a folder
+                    you don't mind being filled with cached exports.
+   :type temp_dir: str, default="./s3_download"
+
+
+   .. py:attribute:: bucket_name
+
+
+   .. py:attribute:: temp_dir
+      :value: './s3_download'
+
+
+
+   .. py:method:: get_files(prefix: str, *, use_meta_files: bool = False, verbose: bool = True) -> list[str]
+      :async:
+
+
+      Download files from the bucket whose key starts with ``prefix``.
+
+      Pega data exports are split into many small files.  This method
+      fetches them concurrently into :attr:`temp_dir`, skipping any
+      file that already exists locally.
+
+      When ``use_meta_files`` is True, each real export file ``X`` is
+      accompanied by a ``.X.meta`` sentinel file that signals the
+      export has finished. We list keys under the dotted prefix
+      (``path/to/.files``), keep entries ending in ``.meta``, and map
+      them back to the underlying file (``path/to/files_001.json``).
+      ``.meta`` files themselves are never copied locally.
+
+      When ``use_meta_files`` is False, every key under ``prefix`` is
+      downloaded.
+
+      :param prefix: S3 key prefix (see boto3 ``Bucket.objects.filter(Prefix=...)``).
+      :type prefix: str
+      :param use_meta_files: Whether to use companion ``.meta`` files to gate downloads.
+      :type use_meta_files: bool, keyword-only, default=False
+      :param verbose: Show a tqdm progress bar (if installed) and print a summary.
+      :type verbose: bool, keyword-only, default=True
+
+      :returns: Local paths of all files that match ``prefix`` (newly
+                downloaded *and* already cached).
+      :rtype: list[str]
+
+
+
+   .. py:method:: get_datamart_data(table: str, *, datamart_folder: str = 'datamart', verbose: bool = True) -> list[str]
+      :async:
+
+
+      Download a single datamart table from S3.
+
+      :param table: Datamart table name. One of the keys in
+                    :data:`DATAMART_TABLE_PREFIXES`: ``"modelSnapshot"``,
+                    ``"predictorSnapshot"``, ``"binaryDistribution"``,
+                    ``"contingencyTable"``, ``"histogram"``, ``"snapshot"``,
+                    ``"notification"``.
+      :type table: str
+      :param datamart_folder: Top-level folder inside the bucket that contains the
+                              datamart export.
+      :type datamart_folder: str, keyword-only, default="datamart"
+      :param verbose: Show download progress.
+      :type verbose: bool, keyword-only, default=True
+
+      :returns: Local paths of the downloaded files.
+      :rtype: list[str]
+
+
+
+   .. py:method:: get_adm_datamart(*, datamart_folder: str = 'datamart', verbose: bool = True) -> pdstools.adm.ADMDatamart.ADMDatamart
+      :async:
+
+
+      Construct an :class:`ADMDatamart` directly from S3.
+
+      Convenience wrapper that downloads the model and predictor
+      snapshot exports and feeds them into :class:`ADMDatamart`.
+      Because this is an async function, it must be awaited.
+
+      :param datamart_folder: Top-level folder inside the bucket that contains the
+                              datamart export.
+      :type datamart_folder: str, keyword-only, default="datamart"
+      :param verbose: Show download progress.
+      :type verbose: bool, keyword-only, default=True
+
+      :returns: A datamart populated with the freshly downloaded files.
+      :rtype: ADMDatamart
+
+      .. rubric:: Examples
+
+      >>> dm = await S3Data(bucket_name="testbucket").get_adm_datamart()
+
+
+

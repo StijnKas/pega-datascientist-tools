@@ -1,0 +1,140 @@
+pdstools.adm.Plots
+==================
+
+.. py:module:: pdstools.adm.Plots
+
+.. autoapi-nested-parse::
+
+   Plot methods for :class:`pdstools.adm.ADMDatamart`.
+
+   This package decomposes the legacy ``Plots`` god-class into mixins
+   grouped by concern. The public ``Plots`` class composes those mixins
+   so that ``dm.plot.<method>`` continues to expose the same surface as
+   before — no public method names, signatures or return types change.
+
+   Layout
+   ------
+   - ``_helpers``    – ``requires`` decorator, ``MetricLimits`` annotation
+     helper, and small plotly building blocks reused by multiple mixins.
+   - ``_overview``   – :meth:`bubble_chart`, :meth:`tree_map`,
+     :meth:`action_overlap`, :meth:`partitioned_plot`.
+   - ``_performance`` – :meth:`over_time`, :meth:`gains_chart`,
+     :meth:`performance_volume_distribution`,
+     :meth:`proposition_success_rates`.
+   - ``_score``      – :meth:`score_distribution`,
+     :meth:`multiple_score_distributions`.
+   - ``_predictors`` – :meth:`predictor_performance`,
+     :meth:`predictor_category_performance`, :meth:`predictor_contribution`,
+     :meth:`predictor_performance_heatmap`, :meth:`predictor_count`.
+   - ``_binning``    – :meth:`predictor_binning`,
+     :meth:`multiple_predictor_binning`, :meth:`binning_lift`.
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /autoapi/pdstools/adm/Plots/_base/index
+   /autoapi/pdstools/adm/Plots/_binning/index
+   /autoapi/pdstools/adm/Plots/_helpers/index
+   /autoapi/pdstools/adm/Plots/_overview/index
+   /autoapi/pdstools/adm/Plots/_performance/index
+   /autoapi/pdstools/adm/Plots/_predictors/index
+   /autoapi/pdstools/adm/Plots/_score/index
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   pdstools.adm.Plots.COLORSCALE_TYPES
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.adm.Plots.Plots
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.adm.Plots.fig_update_facet
+   pdstools.adm.Plots.add_bottom_left_text_to_bubble_plot
+   pdstools.adm.Plots.add_metric_limit_lines
+   pdstools.adm.Plots.distribution_graph
+   pdstools.adm.Plots.requires
+
+
+Package Contents
+----------------
+
+.. py:function:: fig_update_facet(fig: Figure, n_cols: int = 2, base_height: int = 250, step_height: int = 270) -> Figure
+
+   Resize a faceted plot proportionally to its row count and clean labels.
+
+   Combines :func:`simplify_facet_titles` with a height calculation that
+   grows the figure as facet rows are added — Plotly Express does not do
+   this on its own, so without this helper faceted plots squash together as
+   more facets are introduced.
+
+   :param fig: The faceted figure to update.
+   :type fig: Figure
+   :param n_cols: Number of facet columns, by default 2.
+   :type n_cols: int, optional
+   :param base_height: Height (px) for a single-row layout, by default 250.
+   :type base_height: int, optional
+   :param step_height: Additional height (px) per row of facets, by default 270.
+   :type step_height: int, optional
+
+   :returns: The same figure with adjusted ``height`` and simplified facet titles.
+   :rtype: Figure
+
+
+.. py:data:: COLORSCALE_TYPES
+
+.. py:function:: add_bottom_left_text_to_bubble_plot(fig: pdstools.utils.plot_utils.Figure, df: polars.LazyFrame, bubble_size: int)
+
+.. py:function:: add_metric_limit_lines(fig: pdstools.utils.plot_utils.Figure, metric_id: str = 'ModelPerformance', scale: float = 100.0, orientation: str = 'vertical') -> pdstools.utils.plot_utils.Figure
+
+   Add dashed lines at MetricLimits thresholds (red=hard, green=best practice).
+
+
+.. py:function:: distribution_graph(df: polars.LazyFrame, title: str)
+
+.. py:function:: requires(model_columns: collections.abc.Iterable[str] | None = None, predictor_columns: collections.abc.Iterable[str] | None = None, combined_columns: collections.abc.Iterable[str] | None = None)
+
+.. py:class:: Plots(datamart: pdstools.adm.ADMDatamart.ADMDatamart)
+
+   Bases: :py:obj:`_overview._OverviewPlotsMixin`, :py:obj:`_performance._PerformancePlotsMixin`, :py:obj:`_score._ScorePlotsMixin`, :py:obj:`_predictors._PredictorPlotsMixin`, :py:obj:`_binning._BinningPlotsMixin`, :py:obj:`_base._PlotsBase`, :py:obj:`pdstools.utils.namespaces.LazyNamespace`
+
+
+   Namespace exposing all out-of-the-box ADM datamart plots.
+
+   Methods are defined across the ``_overview``, ``_performance``,
+   ``_score``, ``_predictors`` and ``_binning`` submodules and composed
+   here. The class is consumed via ``dm.plot.<method>`` on an
+   :class:`~pdstools.adm.ADMDatamart` instance.
+
+
+   .. py:attribute:: dependencies
+      :value: ['plotly']
+
+
+
+   .. py:attribute:: dependency_group
+      :value: 'adm'
+
+
+
+   .. py:attribute:: datamart
+
+

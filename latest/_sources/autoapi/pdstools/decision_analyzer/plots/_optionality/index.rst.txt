@@ -1,0 +1,30 @@
+pdstools.decision_analyzer.plots._optionality
+=============================================
+
+.. py:module:: pdstools.decision_analyzer.plots._optionality
+
+.. autoapi-nested-parse::
+
+   Optionality / propensity-vs-optionality plots.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer.plots._optionality.propensity_vs_optionality
+   pdstools.decision_analyzer.plots._optionality.optionality_per_stage
+   pdstools.decision_analyzer.plots._optionality.optionality_trend
+
+
+Module Contents
+---------------
+
+.. py:function:: propensity_vs_optionality(self, stage='Arbitration', df=None, return_df=False)
+
+.. py:function:: optionality_per_stage(self, return_df=False)
+
+.. py:function:: optionality_trend(self, df: polars.LazyFrame, return_df=False)
+

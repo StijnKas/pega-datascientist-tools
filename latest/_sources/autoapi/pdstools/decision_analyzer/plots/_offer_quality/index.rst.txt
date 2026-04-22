@@ -1,0 +1,45 @@
+pdstools.decision_analyzer.plots._offer_quality
+===============================================
+
+.. py:module:: pdstools.decision_analyzer.plots._offer_quality
+
+.. autoapi-nested-parse::
+
+   Offer-quality pie charts and trend chart (free functions, not Plot methods).
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer.plots._offer_quality.offer_quality_piecharts
+   pdstools.decision_analyzer.plots._offer_quality.offer_quality_single_pie
+   pdstools.decision_analyzer.plots._offer_quality.getTrendChart
+
+
+Module Contents
+---------------
+
+.. py:function:: offer_quality_piecharts(df: polars.LazyFrame, propensity_th, AvailableNBADStages, return_df=False, level='Stage Group')
+
+.. py:function:: offer_quality_single_pie(df: polars.LazyFrame, stage: str, propensity_th, level='Stage Group')
+
+   Create a single pie chart showing offer quality for a specific stage.
+
+   :param df: Offer quality data from get_offer_quality()
+   :type df: pl.LazyFrame
+   :param stage: Stage name to display (e.g., "Arbitration", "Output")
+   :type stage: str
+   :param propensity_th: Propensity threshold used for relevance categorization
+   :type propensity_th: float
+   :param level: Grouping level (Stage or Stage Group)
+   :type level: str, default "Stage Group"
+
+   :returns: Single pie chart figure
+   :rtype: plotly.graph_objects.Figure
+
+
+.. py:function:: getTrendChart(df: polars.LazyFrame, stage: str = 'Output', return_df=False, level='Stage Group')
+

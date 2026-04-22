@@ -1,0 +1,36 @@
+pdstools.utils.report_utils._query
+==================================
+
+.. py:module:: pdstools.utils.report_utils._query
+
+.. autoapi-nested-parse::
+
+   Serialise/deserialise pdstools ``QUERY`` objects for embedding in reports.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.utils.report_utils._query.serialize_query
+   pdstools.utils.report_utils._query.deserialize_query
+
+
+Module Contents
+---------------
+
+.. py:function:: serialize_query(query: pdstools.utils.types.QUERY | None) -> dict | None
+
+.. py:function:: deserialize_query(serialized_query: dict | None) -> pdstools.utils.types.QUERY | None
+
+   Deserialize a query that was previously serialized with serialize_query.
+
+   :param serialized_query: A serialized query dictionary created by serialize_query
+   :type serialized_query: dict | None
+
+   :returns: The deserialized query
+   :rtype: QUERY | None
+
+

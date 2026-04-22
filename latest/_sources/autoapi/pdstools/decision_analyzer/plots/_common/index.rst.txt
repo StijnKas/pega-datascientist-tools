@@ -1,0 +1,36 @@
+pdstools.decision_analyzer.plots._common
+========================================
+
+.. py:module:: pdstools.decision_analyzer.plots._common
+
+.. autoapi-nested-parse::
+
+   Shared constants and helpers for decision-analyzer plot submodules.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer.plots._common.DEFAULT_BOXPLOT_POINT_CAP
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer.plots._common._boxplot_point_cap
+
+
+Module Contents
+---------------
+
+.. py:data:: DEFAULT_BOXPLOT_POINT_CAP
+   :value: 20000
+
+
+.. py:function:: _boxplot_point_cap(self) -> int
+

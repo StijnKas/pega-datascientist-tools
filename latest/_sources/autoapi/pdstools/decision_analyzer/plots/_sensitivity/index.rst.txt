@@ -1,0 +1,41 @@
+pdstools.decision_analyzer.plots._sensitivity
+=============================================
+
+.. py:module:: pdstools.decision_analyzer.plots._sensitivity
+
+.. autoapi-nested-parse::
+
+   Sensitivity / threshold / prioritization-factor boxplot methods.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer.plots._sensitivity.threshold_deciles
+   pdstools.decision_analyzer.plots._sensitivity.sensitivity
+   pdstools.decision_analyzer.plots._sensitivity.prio_factor_boxplots
+
+
+Module Contents
+---------------
+
+.. py:function:: threshold_deciles(self, thresholding_on, thresholding_name, return_df=False)
+
+.. py:function:: sensitivity(self, win_rank: int = 1, hide_priority=True, return_df=False, reference_group=None, additional_filters=None, total_decisions: int | None = None)
+
+   Sensitivity of the prioritization factors.
+
+   If reference_group is None, this works as global sensitivity,
+   otherwise it is local sensitivity where the focus is on the
+   reference_group.
+
+   When *total_decisions* is provided the x-axis shows percentages
+   relative to that number and the hover includes both the absolute
+   influence count and the total decisions.
+
+
+.. py:function:: prio_factor_boxplots(self, reference: polars.Expr | list[polars.Expr] | None = None, return_df=False, additional_filters=None, others_filter: polars.Expr | list[polars.Expr] | None = None) -> tuple[plotly.graph_objects.Figure, str | None]
+

@@ -1,0 +1,24 @@
+pdstools.decision_analyzer.plots._trend
+=======================================
+
+.. py:module:: pdstools.decision_analyzer.plots._trend
+
+.. autoapi-nested-parse::
+
+   Trend plots.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer.plots._trend.trend_chart
+
+
+Module Contents
+---------------
+
+.. py:function:: trend_chart(self, stage: str, scope: str, return_df=False, additional_filters=None) -> tuple[plotly.graph_objects.Figure, str | None]
+

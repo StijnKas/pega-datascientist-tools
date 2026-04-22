@@ -1,0 +1,292 @@
+pdstools.decision_analyzer.plots
+================================
+
+.. py:module:: pdstools.decision_analyzer.plots
+
+.. autoapi-nested-parse::
+
+   Decision-analyzer plotting helpers.
+
+   This package preserves the public surface of the previous
+   ``decision_analyzer.plots`` module while splitting the implementation
+   across several focused private submodules:
+
+   * ``_sensitivity`` — sensitivity, threshold deciles, prio-factor boxplots.
+   * ``_winloss`` — global win/loss distribution and win-distribution bar chart.
+   * ``_optionality`` — propensity-vs-optionality, optionality per stage / trend.
+   * ``_funnel`` — optionality funnel, decision funnel, decisions-without-actions.
+   * ``_distribution`` — treemap, action variation, histograms, rank/parameter boxplots.
+   * ``_components`` — filter-component plots and prioritization-component distributions.
+   * ``_trend`` — generic trend chart.
+   * ``_offer_quality`` — offer-quality pie charts and trend.
+
+   Submodule names are underscore-prefixed; only this ``__init__`` is the
+   supported import surface. Imports such as
+   ``from pdstools.decision_analyzer.plots import Plot`` continue to resolve
+   unchanged.
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /autoapi/pdstools/decision_analyzer/plots/_common/index
+   /autoapi/pdstools/decision_analyzer/plots/_components/index
+   /autoapi/pdstools/decision_analyzer/plots/_distribution/index
+   /autoapi/pdstools/decision_analyzer/plots/_funnel/index
+   /autoapi/pdstools/decision_analyzer/plots/_offer_quality/index
+   /autoapi/pdstools/decision_analyzer/plots/_optionality/index
+   /autoapi/pdstools/decision_analyzer/plots/_sensitivity/index
+   /autoapi/pdstools/decision_analyzer/plots/_trend/index
+   /autoapi/pdstools/decision_analyzer/plots/_winloss/index
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer.plots.colorway
+   pdstools.decision_analyzer.plots.PRIO_FACTORS
+   pdstools.decision_analyzer.plots.DEFAULT_BOXPLOT_POINT_CAP
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer.plots.Plot
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer.plots.simplify_facet_titles
+   pdstools.decision_analyzer.plots.apply_filter
+   pdstools.decision_analyzer.plots.plot_component_overview
+   pdstools.decision_analyzer.plots.plot_priority_component_distribution
+   pdstools.decision_analyzer.plots.create_parameter_distribution_boxplots
+   pdstools.decision_analyzer.plots.getTrendChart
+   pdstools.decision_analyzer.plots.offer_quality_piecharts
+   pdstools.decision_analyzer.plots.offer_quality_single_pie
+   pdstools.decision_analyzer.plots.create_win_distribution_plot
+
+
+Package Contents
+----------------
+
+.. py:data:: colorway
+   :value: ['#001F5F', '#10A5AC', '#F76923', '#661D34', '#86CAC6', '#005154', '#86CAC6', '#5F67B9',...
+
+
+.. py:function:: simplify_facet_titles(fig: Figure) -> Figure
+
+   Strip the ``column=`` prefix from Plotly facet annotations.
+
+   Plotly Express labels facets as ``"<column_name>=<value>"``; in our
+   reports the column name is redundant context. This helper rewrites each
+   facet annotation to show only the value.
+
+   :param fig: The faceted Plotly figure to update in place.
+   :type fig: Figure
+
+   :returns: The same figure (returned for chaining).
+   :rtype: Figure
+
+
+.. py:data:: PRIO_FACTORS
+   :value: ['Propensity', 'Value', 'Context Weight', 'Levers']
+
+
+.. py:function:: apply_filter(df: polars.LazyFrame, filters: polars.Expr | list[polars.Expr] | None = None)
+
+   Apply a global set of filters. Kept outside of the DecisionData class as
+   this is really more of a utility function, not bound to that class at all.
+
+
+.. py:data:: DEFAULT_BOXPLOT_POINT_CAP
+   :value: 20000
+
+
+.. py:function:: plot_component_overview(value_data: polars.LazyFrame, components: list[str], granularity: str) -> plotly.graph_objects.Figure
+
+   Small-multiples violin panel showing all components side by side.
+
+   Each component gets its own subplot with a fully independent x-axis
+   so their different scales are always visible.
+
+   :rtype: go.Figure
+
+
+.. py:function:: plot_priority_component_distribution(value_data: polars.LazyFrame, component: str, granularity: str, color_discrete_map: dict[str, str] | None = None)
+
+   Violin + ECDF + summary statistics for a single prioritization component.
+
+   :returns: violin_fig, ecdf_fig, stats_df
+   :rtype: tuple of (go.Figure, go.Figure, pl.DataFrame)
+
+
+.. py:function:: create_parameter_distribution_boxplots(segmented_df: polars.DataFrame, parameters: list[str] | None = None, title: str = 'Parameter Distributions: Selected Actions vs Competitors') -> plotly.graph_objects.Figure
+
+   Create box plots comparing parameter distributions between selected actions and others.
+
+   :param segmented_df: DataFrame with columns for parameters and a 'segment' column
+                        containing "Selected Actions" or "Others"
+   :type segmented_df: pl.DataFrame
+   :param parameters: List of parameter column names to plot
+   :type parameters: list[str], optional
+   :param title: Title for the plot
+   :type title: str, optional
+
+   :returns: Plotly figure with box plots
+   :rtype: go.Figure
+
+
+.. py:function:: getTrendChart(df: polars.LazyFrame, stage: str = 'Output', return_df=False, level='Stage Group')
+
+.. py:function:: offer_quality_piecharts(df: polars.LazyFrame, propensity_th, AvailableNBADStages, return_df=False, level='Stage Group')
+
+.. py:function:: offer_quality_single_pie(df: polars.LazyFrame, stage: str, propensity_th, level='Stage Group')
+
+   Create a single pie chart showing offer quality for a specific stage.
+
+   :param df: Offer quality data from get_offer_quality()
+   :type df: pl.LazyFrame
+   :param stage: Stage name to display (e.g., "Arbitration", "Output")
+   :type stage: str
+   :param propensity_th: Propensity threshold used for relevance categorization
+   :type propensity_th: float
+   :param level: Grouping level (Stage or Stage Group)
+   :type level: str, default "Stage Group"
+
+   :returns: Single pie chart figure
+   :rtype: plotly.graph_objects.Figure
+
+
+.. py:function:: create_win_distribution_plot(data: polars.DataFrame, win_count_col: str, scope_config: dict[str, str | list[str]], title_suffix: str, y_axis_title: str) -> tuple[plotly.graph_objects.Figure, polars.DataFrame]
+
+   Create a win distribution bar chart with highlighted selected items.
+
+   This function creates a bar chart showing win counts across actions, groups, or issues
+   based on the scope configuration. It automatically aggregates data appropriately and
+   highlights the selected item in red while showing others in grey.
+
+   :param data: DataFrame containing win distribution data with action identifiers and win counts
+   :type data: pl.DataFrame
+   :param win_count_col: Column name containing win counts to plot (e.g., "original_win_count", "new_win_count")
+   :type win_count_col: str
+   :param scope_config: Configuration dictionary from get_scope_config() containing:
+                        - level: "Action", "Group", or "Issue"
+                        - group_cols: List of columns for grouping
+                        - x_col: Column name for x-axis
+                        - selected_value: Value to highlight in red
+                        - plot_title_prefix: Prefix for plot title
+   :type scope_config: dict[str, str | list[str]]
+   :param title_suffix: Suffix to add to plot title (e.g., "Current Performance", "After Lever Adjustment")
+   :type title_suffix: str
+   :param y_axis_title: Title for y-axis (e.g., "Current Win Count", "New Win Count")
+   :type y_axis_title: str
+
+   :returns:
+
+             - Plotly figure with bar chart
+             - Processed plot data (aggregated if needed)
+   :rtype: tuple[go.Figure, pl.DataFrame]
+
+   .. rubric:: Notes
+
+   - For Action level: Shows individual actions
+   - For Group/Issue level: Automatically aggregates data by summing win counts
+   - Selected item is highlighted in red (#FF0000), others in grey
+   - "No Winner" bar (if present in data) is shown in orange (#FFA500) to highlight interactions without winners
+   - If selected item not found, uses light blue as fallback color
+   - X-axis labels are hidden to avoid clutter, scope level shown as x-axis title
+   - "No Winner" data is calculated and added by get_win_distribution_data() when all_interactions parameter is provided
+
+   .. rubric:: Examples
+
+   >>> scope_config = get_scope_config("Service", "Cards", "MyAction")
+   >>> fig, plot_data = create_win_distribution_plot(
+   ...     distribution_data,
+   ...     "new_win_count",
+   ...     scope_config,
+   ...     "After Lever Adjustment",
+   ...     "New Win Count"
+   ... )
+
+
+.. py:class:: Plot(decision_data)
+
+   Plotting facade attached to a :class:`DecisionAnalyzer` instance.
+
+   Method implementations live in the underscore-prefixed submodules
+   (``_sensitivity``, ``_funnel``, …) and are bound onto this class
+   below so the public surface and call sites remain unchanged.
+
+
+   .. py:attribute:: _decision_data
+
+
+   .. py:attribute:: _boxplot_point_cap
+
+
+   .. py:attribute:: threshold_deciles
+
+
+   .. py:attribute:: sensitivity
+
+
+   .. py:attribute:: prio_factor_boxplots
+
+
+   .. py:attribute:: global_winloss_distribution
+
+
+   .. py:attribute:: propensity_vs_optionality
+
+
+   .. py:attribute:: optionality_per_stage
+
+
+   .. py:attribute:: optionality_trend
+
+
+   .. py:attribute:: optionality_funnel
+
+
+   .. py:attribute:: decision_funnel
+
+
+   .. py:attribute:: decisions_without_actions_plot
+
+
+   .. py:attribute:: distribution_as_treemap
+
+
+   .. py:attribute:: action_variation
+
+
+   .. py:attribute:: distribution
+
+
+   .. py:attribute:: rank_boxplot
+
+
+   .. py:attribute:: filtering_components
+
+
+   .. py:attribute:: component_action_impact
+
+
+   .. py:attribute:: component_drilldown
+
+
+   .. py:attribute:: trend_chart
+
+

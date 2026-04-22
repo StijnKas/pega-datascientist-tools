@@ -1,0 +1,35 @@
+pdstools.adm.Plots._base
+========================
+
+.. py:module:: pdstools.adm.Plots._base
+
+.. autoapi-nested-parse::
+
+   Shared base for the :class:`Plots` mixins.
+
+   Each mixin in this package references ``self.datamart``. The base class
+   declares that attribute so the mixins type-check independently of the
+   final composed :class:`Plots` class.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.adm.Plots._base._PlotsBase
+
+
+Module Contents
+---------------
+
+.. py:class:: _PlotsBase
+
+   Common attribute surface used by every plot mixin.
+
+
+   .. py:attribute:: datamart
+      :type:  pdstools.adm.ADMDatamart.ADMDatamart
+
+

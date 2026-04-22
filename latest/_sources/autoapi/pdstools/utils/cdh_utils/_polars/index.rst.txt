@@ -1,0 +1,237 @@
+pdstools.utils.cdh_utils._polars
+================================
+
+.. py:module:: pdstools.utils.cdh_utils._polars
+
+.. autoapi-nested-parse::
+
+   Polars expression and frame helpers (queries, sampling, schema, overlap).
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   pdstools.utils.cdh_utils._polars.POLARS_DURATION_PATTERN
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.utils.cdh_utils._polars.is_valid_polars_duration
+   pdstools.utils.cdh_utils._polars._apply_query
+   pdstools.utils.cdh_utils._polars._combine_queries
+   pdstools.utils.cdh_utils._polars._polars_capitalize
+   pdstools.utils.cdh_utils._polars._extract_keys
+   pdstools.utils.cdh_utils._polars.weighted_average_polars
+   pdstools.utils.cdh_utils._polars.weighted_performance_polars
+   pdstools.utils.cdh_utils._polars.overlap_matrix
+   pdstools.utils.cdh_utils._polars.overlap_lists_polars
+   pdstools.utils.cdh_utils._polars.lazy_sample
+   pdstools.utils.cdh_utils._polars._apply_schema_types
+
+
+Module Contents
+---------------
+
+.. py:data:: POLARS_DURATION_PATTERN
+
+.. py:function:: is_valid_polars_duration(value: str, max_length: int = 30) -> bool
+
+   Validate Polars duration syntax.
+
+   Checks if a string is a valid Polars duration (e.g., "1d", "1w", "1mo", "1h30m").
+   Used to validate user input before passing to Polars methods like dt.truncate()
+   or group_by_dynamic().
+
+   :param value: The duration string to validate.
+   :type value: str
+   :param max_length: Maximum allowed string length (prevents excessive input).
+   :type max_length: int, default 30
+
+   :returns: True if the string is a valid Polars duration, False otherwise.
+   :rtype: bool
+
+   .. rubric:: Examples
+
+   >>> is_valid_polars_duration("1d")
+   True
+   >>> is_valid_polars_duration("1w")
+   True
+   >>> is_valid_polars_duration("1h30m")
+   True
+   >>> is_valid_polars_duration("invalid")
+   False
+   >>> is_valid_polars_duration("")
+   False
+
+
+.. py:function:: _apply_query(df: polars.LazyFrame, query: pdstools.utils.types.QUERY | None = None, allow_empty: bool = False) -> polars.LazyFrame
+                 _apply_query(df: polars.DataFrame, query: pdstools.utils.types.QUERY | None = None, allow_empty: bool = False) -> polars.DataFrame
+
+.. py:function:: _combine_queries(existing_query: pdstools.utils.types.QUERY, new_query: polars.Expr) -> pdstools.utils.types.QUERY
+
+.. py:function:: _polars_capitalize(df: pdstools.utils.cdh_utils._common.F, extra_endwords: collections.abc.Iterable[str] | None = None) -> pdstools.utils.cdh_utils._common.F
+
+.. py:function:: _extract_keys(df: pdstools.utils.cdh_utils._common.F, key: str = 'Name', capitalize: bool = True) -> pdstools.utils.cdh_utils._common.F
+
+   Extracts keys out of the pyName column
+
+   This is not a lazy operation as we don't know the possible keys
+   in advance. For that reason, we select only the key column,
+   extract the keys from that, and then collect the resulting dataframe.
+   This dataframe is then joined back to the original dataframe.
+
+   This is relatively efficient, but we still do need the whole
+   pyName column in memory to do this, so it won't work completely
+   lazily from e.g. s3. That's why it only works with eager mode.
+
+   The data in column for which the JSON is extract is normalized a
+   little by taking out non-space, non-printable characters. Not just
+   ASCII of course. This may be relatively expensive.
+
+   JSON extraction only happens on the unique values so saves a lot
+   of time with multiple snapshots of the same models, it also only
+   processes rows for which the key column appears to be valid JSON.
+   It will break when you "trick" it with malformed JSON.
+
+   Column values for columns that are also encoded in the key column
+   will be overwritten with values from the key column, but only for
+   rows that are JSON. In previous versions all values were overwritten
+   resulting in many nulls.
+
+   :param df: The dataframe to extract the keys from
+   :type df: pl.DataFrame | pl.LazyFrame
+   :param key: The column with embedded JSON
+   :type key: str
+   :param capitalize: If True (default) normalizes the names of the embedded columns
+                      otherwise keeps the names as-is.
+   :type capitalize: bool
+
+
+.. py:function:: weighted_average_polars(vals: str | polars.Expr, weights: str | polars.Expr) -> polars.Expr
+
+.. py:function:: weighted_performance_polars(vals: str | polars.Expr = 'Performance', weights: str | polars.Expr = 'ResponseCount') -> polars.Expr
+
+   Polars function to return a weighted performance
+
+
+.. py:function:: overlap_matrix(df: polars.DataFrame, list_col: str, by: str, show_fraction: bool = True) -> polars.DataFrame
+
+   Calculate the overlap of a list element with all other list elements returning a full matrix.
+
+   For each list in the specified column, this function calculates the overlap ratio (intersection size
+   divided by the original list size) with every other list in the column, including itself. The result
+   is a matrix where each row represents the overlap ratios for one list with all others.
+
+   :param df: The Polars DataFrame containing the list column and grouping column.
+   :type df: pl.DataFrame
+   :param list_col: The name of the column containing the lists. Each element in this column should be a list.
+   :type list_col: str
+   :param by: The name of the column to use for grouping and labeling the rows in the result matrix.
+   :type by: str
+
+   :returns: A DataFrame where:
+             - Each row represents the overlap ratios for one list with all others
+             - Each column (except the last) represents the overlap ratio with a specific list
+             - Column names are formatted as "Overlap_{list_col_name}_{by}"
+             - The last column contains the original values from the 'by' column
+   :rtype: pl.DataFrame
+
+   .. rubric:: Examples
+
+   >>> import polars as pl
+   >>> df = pl.DataFrame({
+   ...     "Channel": ["Mobile", "Web", "Email"],
+   ...     "Actions": [
+   ...         [1, 2, 3],
+   ...         [2, 3, 4, 6],
+   ...         [3, 5, 7, 8]
+   ...     ]
+   ... })
+   >>> overlap_matrix(df, "Actions", "Channel")
+   shape: (3, 4)
+   ┌───────────────────┬───────────────┬───────────────┬─────────┐
+   │ Overlap_Actions_M… │ Overlap_Actio… │ Overlap_Actio… │ Channel │
+   │ ---               │ ---           │ ---           │ ---     │
+   │ f64               │ f64           │ f64           │ str     │
+   ╞═══════════════════╪═══════════════╪═══════════════╪═════════╡
+   │ 1.0               │ 0.6666667     │ 0.3333333     │ Mobile  │
+   │ 0.5               │ 1.0           │ 0.25          │ Web     │
+   │ 0.25              │ 0.25          │ 1.0           │ Email   │
+   └───────────────────┴───────────────┴───────────────┴─────────┘
+
+
+.. py:function:: overlap_lists_polars(col: polars.Series) -> polars.Series
+
+   Calculate the average overlap ratio of each list element with all other list elements into a single Series.
+
+   For each list in the input Series, this function calculates the average overlap (intersection)
+   with all other lists, normalized by the size of the original list. The overlap ratio represents
+   how much each list has in common with all other lists on average.
+
+   :param col: A Polars Series where each element is a list. The function will calculate
+               the overlap between each list and all other lists in the Series.
+   :type col: pl.Series
+
+   :returns: A Polars Series of float values representing the average overlap ratio for each list.
+             Each value is calculated as:
+             (sum of intersection sizes with all other lists) / (number of other lists) / (size of original list)
+   :rtype: pl.Series
+
+   .. rubric:: Examples
+
+   >>> import polars as pl
+   >>> data = pl.Series([
+   ...     [1, 2, 3],
+   ...     [2, 3, 4, 6],
+   ...     [3, 5, 7, 8]
+   ... ])
+   >>> overlap_lists_polars(data)
+   shape: (3,)
+   Series: '' [f64]
+   [
+       0.5
+       0.375
+       0.25
+   ]
+   >>> df = pl.DataFrame({"Channel" : ["Mobile", "Web", "Email"], "Actions" : pl.Series([
+   ...     [1, 2, 3],
+   ...     [2, 3, 4, 6],
+   ...     [3, 5, 7, 8]
+   ... ])})
+   >>> df.with_columns(pl.col("Actions").map_batches(overlap_lists_polars))
+   shape: (3, 2)
+   ┌─────────┬─────────┐
+   │ Channel │ Actions │
+   │ ---     │ ---     │
+   │ str     │ f64     │
+   ╞═════════╪═════════╡
+   │ Mobile  │ 0.5     │
+   │ Web     │ 0.375   │
+   │ Email   │ 0.25    │
+   └─────────┴─────────┘
+
+
+.. py:function:: lazy_sample(df: pdstools.utils.cdh_utils._common.F, n_rows: int, with_replacement: bool = True) -> pdstools.utils.cdh_utils._common.F
+
+.. py:function:: _apply_schema_types(df: pdstools.utils.cdh_utils._common.F, definition, **timestamp_opts) -> pdstools.utils.cdh_utils._common.F
+
+   This function is used to convert the data types of columns in a DataFrame to a desired types.
+   The desired types are defined in a `PegaDefaultTables` class.
+
+   :param df: The DataFrame whose columns' data types need to be converted.
+   :type df: pl.LazyFrame
+   :param definition: A `PegaDefaultTables` object that contains the desired data types for the columns.
+   :type definition: PegaDefaultTables
+   :param timestamp_opts: Additional arguments for timestamp parsing.
+   :type timestamp_opts: str
+
+   :returns: A list with polars expressions for casting data types.
+   :rtype: list
+
+

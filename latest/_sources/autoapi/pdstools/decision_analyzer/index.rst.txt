@@ -1,0 +1,448 @@
+pdstools.decision_analyzer
+==========================
+
+.. py:module:: pdstools.decision_analyzer
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /autoapi/pdstools/decision_analyzer/DecisionAnalyzer/index
+   /autoapi/pdstools/decision_analyzer/_aggregates/index
+   /autoapi/pdstools/decision_analyzer/_scoring/index
+   /autoapi/pdstools/decision_analyzer/column_schema/index
+   /autoapi/pdstools/decision_analyzer/data_read_utils/index
+   /autoapi/pdstools/decision_analyzer/plots/index
+   /autoapi/pdstools/decision_analyzer/stage_grouping/index
+   /autoapi/pdstools/decision_analyzer/utils/index
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer.DecisionAnalyzer
+
+
+Package Contents
+----------------
+
+.. py:class:: DecisionAnalyzer(raw_data: polars.LazyFrame, *, level: str = 'Stage Group', sample_size: int = DEFAULT_SAMPLE_SIZE, mandatory_expr: polars.Expr | None = None, additional_columns: dict[str, polars.DataType] | None = None, num_samples: int = 1)
+
+   Analyze NBA decision data from Explainability Extract or Decision Analyzer exports.
+
+   This class processes raw decision data to create a comprehensive analysis
+   framework for NBA (Next-Best-Action). It supports two data source formats:
+
+   - **Explainability Extract (v1)**: Simpler format with actions at the
+     arbitration stage. Stages are synthetically derived from ranking.
+   - **Decision Analyzer / EEV2 (v2)**: Full pipeline data with real stage
+     information, filter component names, and detailed strategy tracking.
+
+   Data can be loaded via class methods or directly:
+
+   - :meth:`from_explainability_extract`: Load from an Explainability Extract file.
+   - :meth:`from_decision_analyzer`: Load from a Decision Analyzer (EEV2) file.
+   - Direct ``__init__``: Auto-detects format from the data schema.
+
+   .. attribute:: decision_data
+
+      Interaction-level decision data (with global filters applied if any).
+
+      :type: pl.LazyFrame
+
+   .. attribute:: extract_type
+
+      Either ``"explainability_extract"`` or ``"decision_analyzer"``.
+
+      :type: str
+
+   .. attribute:: plot
+
+      Plot accessor for visualization methods.
+
+      :type: Plot
+
+   .. attribute:: aggregates
+
+      Accessor for aggregation queries (funnel, distribution,
+      optionality, action variation, …).
+
+      :type: Aggregates
+
+   .. attribute:: scoring
+
+      Accessor for re-ranking, sensitivity, win/loss and lever
+      analysis.
+
+      :type: Scoring
+
+   .. rubric:: Examples
+
+   >>> from pdstools import DecisionAnalyzer
+   >>> da = DecisionAnalyzer.from_explainability_extract("data/sample_explainability_extract.parquet")
+   >>> da.overview_stats
+   >>> da.plot.sensitivity()
+   >>> da.aggregates.get_funnel_data(scope="Action")
+   >>> da.scoring.get_sensitivity()
+
+
+   .. py:attribute:: _num_sample_interactions
+      :type:  int
+
+
+   .. py:method:: from_explainability_extract(source: str | os.PathLike, *, level: str = 'Stage Group', sample_size: int = DEFAULT_SAMPLE_SIZE, mandatory_expr: polars.Expr | None = None, additional_columns: dict[str, polars.DataType] | None = None, num_samples: int = 1) -> DecisionAnalyzer
+      :classmethod:
+
+
+      Create a DecisionAnalyzer from an Explainability Extract (v1) file.
+
+      :param source: Path to the Explainability Extract parquet file, or a URL.
+      :type source: str | os.PathLike
+      :param level: See :meth:`__init__` for details.
+      :param sample_size: See :meth:`__init__` for details.
+      :param mandatory_expr: See :meth:`__init__` for details.
+      :param additional_columns: See :meth:`__init__` for details.
+      :param num_samples: See :meth:`__init__` for details.
+
+      :rtype: DecisionAnalyzer
+
+      .. rubric:: Examples
+
+      >>> da = DecisionAnalyzer.from_explainability_extract("data/sample_explainability_extract.parquet")
+
+
+
+   .. py:method:: from_decision_analyzer(source: str | os.PathLike, *, level: str = 'Stage Group', sample_size: int = DEFAULT_SAMPLE_SIZE, mandatory_expr: polars.Expr | None = None, additional_columns: dict[str, polars.DataType] | None = None, num_samples: int = 1) -> DecisionAnalyzer
+      :classmethod:
+
+
+      Create a DecisionAnalyzer from a Decision Analyzer / EEV2 (v2) file.
+
+      :param source: Path to the Decision Analyzer parquet file, or a URL.
+      :type source: str | os.PathLike
+      :param level: See :meth:`__init__` for details.
+      :param sample_size: See :meth:`__init__` for details.
+      :param mandatory_expr: See :meth:`__init__` for details.
+      :param additional_columns: See :meth:`__init__` for details.
+      :param num_samples: See :meth:`__init__` for details.
+
+      :rtype: DecisionAnalyzer
+
+      .. rubric:: Examples
+
+      >>> da = DecisionAnalyzer.from_decision_analyzer("data/sample_eev2.parquet")
+
+
+
+   .. py:attribute:: _default_filter_fields
+      :value: ['Decision Time', 'Channel', 'Direction', 'Issue', 'Group', 'Action', 'Treatment', 'Stage',...
+
+
+
+   .. py:attribute:: plot
+
+
+   .. py:attribute:: aggregates
+
+
+   .. py:attribute:: scoring
+
+
+   .. py:attribute:: level
+      :value: 'Stage Group'
+
+
+
+   .. py:attribute:: sample_size
+      :value: 10000
+
+
+
+   .. py:attribute:: _num_samples
+      :value: 1
+
+
+
+   .. py:attribute:: _thresholding_cache
+      :type:  dict[tuple[str, tuple[int, Ellipsis]], polars.DataFrame]
+
+
+   .. py:attribute:: _sensitivity_cache
+      :type:  dict[int, polars.LazyFrame]
+
+
+   .. py:attribute:: extract_type
+      :value: 'decision_analyzer'
+
+
+
+   .. py:attribute:: validation_error
+      :value: 'The following default columns are missing: '
+
+
+
+   .. py:attribute:: decision_data
+
+
+   .. py:attribute:: fields_for_data_filtering
+
+
+   .. py:attribute:: preaggregation_columns
+
+
+   .. py:attribute:: max_win_rank
+      :value: 5
+
+
+
+   .. py:attribute:: AvailableNBADStages
+      :value: ['Arbitration', 'Output']
+
+
+
+   .. py:property:: available_levels
+      :type: list[str]
+
+
+      Stage granularity levels available for this dataset.
+
+      Returns ``["Stage Group", "Stage"]`` for Decision Analyzer (v2) data
+      when both columns are present, or ``["Stage Group"]`` for
+      Explainability Extract (v1) data where only synthetic stages exist.
+
+
+   .. py:method:: set_level(level: str)
+
+      Switch the stage granularity level used for all analyses.
+
+      Recomputes the available stages for the new level and invalidates
+      all cached properties so subsequent queries use the new granularity.
+
+      :param level: ``"Stage Group"`` or ``"Stage"``.
+      :type level: str
+
+
+
+   .. py:method:: _recompute_available_stages()
+
+      Derive ``AvailableNBADStages`` from the data for the current level.
+
+      At "Stage Group" level, synthetically injects "Arbitration" if it
+      has no data rows (it is used as an anchor point by many analyses).
+
+      At "Stage" level, detects Stage Groups that have no individual
+      stages represented in the data and inserts the group name as a
+      placeholder so the full pipeline is visible.
+
+
+
+   .. py:property:: mandatory_actions
+      :type: set[str]
+
+
+      Set of action names flagged as mandatory in the current data.
+
+      Mandatory actions bypass normal arbitration and always rank in the
+      top slot. Auto-detected from ``Priority`` (see
+      :data:`MANDATORY_PRIORITY_THRESHOLD`) unless an explicit
+      ``mandatory_expr`` was supplied at construction.
+
+      :returns: Distinct ``Action`` values where ``is_mandatory`` is truthy.
+                Empty when no mandatory rows or no ``Action`` / ``is_mandatory``
+                column is available.
+      :rtype: set[str]
+
+
+   .. py:property:: color_mappings
+      :type: dict[str, dict[str, str]]
+
+
+      Compute consistent color mappings for all categorical dimensions.
+
+      Color assignments are based on all unique values in the full dataset
+      (before sampling), sorted alphabetically. This ensures colors remain
+      consistent throughout the session regardless of filtering.
+
+      :returns: Nested dictionary mapping dimension names to color dictionaries.
+                Example: {
+                    "Issue": {"Retention": "#001F5F", "Sales": "#10A5AC"},
+                    "Group": {"CreditCards": "#001F5F", "Loans": "#10A5AC"},
+                }
+      :rtype: dict[str, dict[str, str]]
+
+      .. rubric:: Notes
+
+      Uses @cached_property so computation happens once on first access.
+      Colors are assigned from the Pega colorway using modulo indexing.
+
+      .. seealso::
+
+         :py:obj:`pdstools.utils.color_mapping.create_categorical_color_mappings`
+             Generic utility for creating color mappings in any Streamlit app.
+
+
+   .. py:property:: stages_from_arbitration_down
+
+      All stages from Arbitration onward, respecting the current level.
+
+      At "Stage Group" level this slices from the literal "Arbitration"
+      entry.  At "Stage" level it finds stages whose Stage Order is >=
+      the Arbitration group order (3800) using the stage_to_group_mapping.
+
+
+   .. py:property:: stages_with_propensity
+
+      Infer which stages have meaningful propensity scores from the data.
+
+      Examines the sample data to determine which stages have non-null, non-default
+      propensity values. Returns stages where propensity-based classification makes sense.
+
+
+   .. py:property:: propensity_validation_warning
+      :type: str | None
+
+
+      Validate propensity values and return warning message if issues detected.
+
+      Checks for:
+      1. Invalid propensities (> 1.0) - mathematically impossible for probabilities
+      2. Unusually high propensities (> 0.1) - uncommon for typical marketing interactions
+
+      Returns None if validation passes or propensity data is not available.
+      Uses sample data for efficiency.
+
+
+   .. py:property:: arbitration_stage
+      :type: polars.LazyFrame
+
+
+      Sample rows remaining at or after the Arbitration stage.
+
+
+   .. py:property:: num_sample_interactions
+      :type: int
+
+
+      Number of unique interactions in the sample.
+      Automatically triggers sampling if not yet calculated.
+
+
+   .. py:method:: _invalidate_cached_properties()
+
+      Resets the properties of the class. Needed for global filters.
+
+
+
+   .. py:property:: preaggregated_filter_view
+
+      Pre-aggregates the full dataset over customers and interactions providing
+      a view of what is filtered at a stage.
+
+      This pre-aggregation is pretty similar to what "VBD" does to interaction
+      history. It aggregates over individual customers and interactions giving
+      summary statistics that are sufficient to drive most of the analyses
+      (but not all). The results of this pre-aggregation are much smaller
+      than the original data and is expected to easily fit in memory. We therefore
+      use polars caching to efficiently cache this.
+
+      This "filter" view keeps the same organization as the decision analyzer data
+      in that it records the actions that get filtered out at stages. From this
+      a "remaining" view is easily derived.
+
+
+   .. py:property:: preaggregated_remaining_view
+
+      Pre-aggregates the full dataset over customers and interactions providing a view of remaining offers.
+
+      This pre-aggregation builds on the filter view and aggregates over
+      the stages remaining.
+
+
+   .. py:property:: sample
+
+      Hash-based deterministic sample of interactions for resource-intensive analyses.
+
+      Selects up to ``sample_size`` unique interactions using a hash of
+      Interaction ID. All actions within a selected interaction are kept.
+      If fewer interactions exist than ``sample_size``, no sampling is performed.
+
+      When the ``--sample`` CLI flag is active, this operates on the
+      already-reduced dataset, so two layers of sampling may apply.
+
+
+   .. py:method:: filtered(filters: list[polars.Expr] | polars.Expr | None = None) -> polars.LazyFrame
+
+      Return ``self.sample`` with the given filter expressions applied.
+
+      :param filters: Filter expressions to AND together. ``None`` or an empty list
+                      returns the sample unchanged. Apps should construct this list
+                      from their own state (for Streamlit pages, see
+                      :func:`pdstools.app.decision_analyzer.da_streamlit_utils.collect_page_filters`);
+                      the library deliberately does not read UI state.
+      :type filters: list[pl.Expr] | pl.Expr | None, default None
+
+      :returns: The (possibly filtered) sample.
+      :rtype: pl.LazyFrame
+
+
+
+   .. py:method:: get_available_fields_for_filtering(*, categorical_only: bool = False) -> list[str]
+
+      Return column names available for data filtering.
+
+      :param categorical_only: If True, return only string/categorical columns.
+      :type categorical_only: bool, default False
+
+
+
+   .. py:method:: _cleanup_raw_data(df: polars.LazyFrame) -> polars.LazyFrame
+
+      This method cleans up the raw data we read from parquet/S3/whatever.
+
+      This likely needs to change as and when we get closer to product, to
+      match what comes out of Pega. It does some modest type casting and
+      potentially changing back some of the temporary column names that have
+      been added to generate more data.
+
+
+
+   .. py:method:: get_possible_scope_values() -> list[str]
+
+      Return scope hierarchy columns present in the data (e.g. Issue, Group, Action).
+
+
+
+   .. py:method:: get_possible_stage_values() -> list[str]
+
+      Return the list of available stage values for the current level.
+
+
+
+   .. py:property:: stage_to_group_mapping
+      :type: dict[str, str]
+
+
+      Map each Stage name to its Stage Group.
+
+      Only meaningful when ``level == "Stage"`` and both columns exist.
+      Returns an empty dict otherwise (including v1 / explainability data).
+
+
+   .. py:property:: overview_stats
+      :type: dict[str, object]
+
+
+      Creates an overview from the full (filtered) dataset.
+
+      Aggregate metrics (Decisions, Customers, Actions, Channels, Duration)
+      are computed over ``decision_data`` so they reflect the true counts.
+      Only the average-offers-per-stage KPI uses the sample (it requires
+      interaction-level optionality analysis that would be too expensive on
+      the full data).
+
+

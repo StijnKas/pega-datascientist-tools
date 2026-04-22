@@ -1,0 +1,39 @@
+pdstools.decision_analyzer.plots._funnel
+========================================
+
+.. py:module:: pdstools.decision_analyzer.plots._funnel
+
+.. autoapi-nested-parse::
+
+   Funnel plots: optionality funnel, decision funnel, decisions-without-actions.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer.plots._funnel.optionality_funnel
+   pdstools.decision_analyzer.plots._funnel.decision_funnel
+   pdstools.decision_analyzer.plots._funnel.decisions_without_actions_plot
+
+
+Module Contents
+---------------
+
+.. py:function:: optionality_funnel(self, df)
+
+.. py:function:: decision_funnel(self, scope: str, additional_filters: polars.Expr | list[polars.Expr] | None = None, return_df=False)
+
+   Return (passing_fig, filtered_fig) for the Action Funnel tabs.
+
+   passing_fig shows actions that exit each stage (Passing Actions tab).
+   filtered_fig shows actions removed at each stage (Filtered Actions tab).
+
+
+.. py:function:: decisions_without_actions_plot(self, additional_filters: polars.Expr | list[polars.Expr] | None = None, return_df=False)
+
+   Bar chart showing decisions with no remaining actions per stage, as % of total.
+
+

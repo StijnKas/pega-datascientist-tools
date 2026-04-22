@@ -1,0 +1,148 @@
+pdstools.utils.report_utils._quarto
+===================================
+
+.. py:module:: pdstools.utils.report_utils._quarto
+
+.. autoapi-nested-parse::
+
+   Quarto execution helpers: run, version detection, callouts, credits.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.utils.report_utils._quarto._write_params_files
+   pdstools.utils.report_utils._quarto.run_quarto
+   pdstools.utils.report_utils._quarto._set_command_options
+   pdstools.utils.report_utils._quarto._get_cmd_output
+   pdstools.utils.report_utils._quarto._get_version_only
+   pdstools.utils.report_utils._quarto.get_quarto_with_version
+   pdstools.utils.report_utils._quarto.get_pandoc_with_version
+   pdstools.utils.report_utils._quarto.quarto_print
+   pdstools.utils.report_utils._quarto.quarto_callout_info
+   pdstools.utils.report_utils._quarto.quarto_callout_important
+   pdstools.utils.report_utils._quarto.quarto_plot_exception
+   pdstools.utils.report_utils._quarto.quarto_callout_no_prediction_data_warning
+   pdstools.utils.report_utils._quarto.quarto_callout_no_predictor_data_warning
+   pdstools.utils.report_utils._quarto.show_credits
+
+
+Module Contents
+---------------
+
+.. py:function:: _write_params_files(temp_dir: pathlib.Path, params: dict | None = None, project: dict = {'type': 'default'}, analysis: dict | None = None, full_embed: bool = False) -> None
+
+   Write parameters to YAML files for Quarto processing.
+
+   :param temp_dir: Directory where YAML files will be written
+   :type temp_dir: Path
+   :param params: Parameters to write to params.yml, by default None
+   :type params: dict, optional
+   :param project: Project configuration to write to _quarto.yml, by default {"type": "default"}
+   :type project: dict, optional
+   :param analysis: Analysis configuration to write to _quarto.yml, by default None
+   :type analysis: dict, optional
+   :param full_embed: When True, embeds all resources (JavaScript libraries like Plotly,
+                      itables, etc.) for a fully standalone HTML (larger output).
+                      When False, loads JavaScript libraries from CDN and skips esbuild
+                      bundling (smaller output, but requires internet).
+   :type full_embed: bool, default=False
+
+   :rtype: None
+
+
+.. py:function:: run_quarto(qmd_file: str | None = None, output_filename: str | None = None, output_type: str | None = 'html', params: dict | None = None, project: dict = {'type': 'default'}, analysis: dict | None = None, temp_dir: pathlib.Path = Path(), *, full_embed: bool = False) -> int
+
+   Run the Quarto command to generate the report.
+
+   :param qmd_file: Path to the Quarto markdown file to render, by default None
+   :type qmd_file: str, optional
+   :param output_filename: Name of the output file, by default None
+   :type output_filename: str, optional
+   :param output_type: Type of output format (html, pdf, etc.), by default "html"
+   :type output_type: str, optional
+   :param params: Parameters to pass to Quarto execution, by default None
+   :type params: dict, optional
+   :param project: Project configuration settings, by default {"type": "default"}
+   :type project: dict, optional
+   :param analysis: Analysis configuration settings, by default None
+   :type analysis: dict, optional
+   :param temp_dir: Temporary directory for processing, by default Path(".")
+   :type temp_dir: Path, optional
+   :param full_embed: When True, fully embeds all JavaScript libraries (Plotly, itables,
+                      etc.) into the HTML output (larger file).
+                      When False, loads JavaScript libraries from CDN and skips esbuild
+                      bundling, avoiding the need for esbuild (see issue #620).
+   :type full_embed: bool, default=False
+
+   :returns: Return code from the Quarto process (0 for success)
+   :rtype: int
+
+   :raises RuntimeError: If the Quarto process fails (non-zero return code), includes captured output
+   :raises subprocess.SubprocessError: If the Quarto command fails to execute
+   :raises FileNotFoundError: If required files are not found
+
+
+.. py:function:: _set_command_options(output_type: str | None = None, output_filename: str | None = None, execute_params: bool = False) -> list[str]
+
+   Set the options for the Quarto command.
+
+   :param output_type: Output format type (html, pdf, etc.), by default None
+   :type output_type: str, optional
+   :param output_filename: Name of the output file, by default None
+   :type output_filename: str, optional
+   :param execute_params: Whether to include parameter execution flag, by default False
+   :type execute_params: bool, optional
+
+   :returns: list of command line options for Quarto
+   :rtype: list[str]
+
+
+.. py:function:: _get_cmd_output(args: list[str]) -> list[str]
+
+   Get command output in an OS-agnostic way.
+
+
+.. py:function:: _get_version_only(versionstr: str) -> str
+
+   Extract version number from version string.
+
+
+.. py:function:: get_quarto_with_version() -> tuple[pathlib.Path, str]
+
+   Get Quarto executable path and version.
+
+
+.. py:function:: get_pandoc_with_version() -> tuple[pathlib.Path, str]
+
+   Get Pandoc executable path and version.
+
+
+.. py:function:: quarto_print(text)
+
+.. py:function:: quarto_callout_info(info)
+
+.. py:function:: quarto_callout_important(info)
+
+.. py:function:: quarto_plot_exception(plot_name: str, e: Exception)
+
+.. py:function:: quarto_callout_no_prediction_data_warning(extra='')
+
+.. py:function:: quarto_callout_no_predictor_data_warning(extra='')
+
+.. py:function:: show_credits(quarto_source: str | None = None)
+
+   Display a credits section with build metadata at the end of a report.
+
+   Prints a formatted block containing the generation timestamp, Quarto and
+   Pandoc versions, and optionally the source notebook path.
+
+   :param quarto_source: Path or identifier of the source .qmd file. Include this for
+                         standalone reports where knowing the source is useful. Omit for
+                         Quarto website projects where pages are generated from templates.
+   :type quarto_source: str, optional
+
+

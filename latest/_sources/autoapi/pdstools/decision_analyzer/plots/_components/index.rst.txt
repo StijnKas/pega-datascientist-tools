@@ -1,0 +1,100 @@
+pdstools.decision_analyzer.plots._components
+============================================
+
+.. py:module:: pdstools.decision_analyzer.plots._components
+
+.. autoapi-nested-parse::
+
+   Component / filter analysis plots.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer.plots._components._ECDF_MAX_ROWS
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.decision_analyzer.plots._components.filtering_components
+   pdstools.decision_analyzer.plots._components.component_action_impact
+   pdstools.decision_analyzer.plots._components.component_drilldown
+   pdstools.decision_analyzer.plots._components.plot_priority_component_distribution
+   pdstools.decision_analyzer.plots._components.plot_component_overview
+
+
+Module Contents
+---------------
+
+.. py:data:: _ECDF_MAX_ROWS
+   :value: 50000
+
+
+.. py:function:: filtering_components(self, stages: list[str], top_n, AvailableNBADStages, additional_filters: polars.Expr | list[polars.Expr] | None = None, return_df=False)
+
+.. py:function:: component_action_impact(self, top_n: int = 10, scope: str = 'Action', additional_filters: polars.Expr | list[polars.Expr] | None = None, return_df=False)
+
+   Horizontal bar chart showing which items each component filters most.
+
+   One facet per component (top components by total filtering), bars show
+   items sorted by filtered decision count. The scope controls whether the
+   breakdown is at Issue, Group, or Action level.
+
+   :param top_n: Maximum number of items per component.
+   :type top_n: int, default 10
+   :param scope: Granularity: ``"Issue"``, ``"Group"``, or ``"Action"``.
+   :type scope: str, default "Action"
+   :param additional_filters: Extra filters applied before aggregation.
+   :type additional_filters: pl.Expr or list of pl.Expr, optional
+   :param return_df: If True, return the DataFrame instead of a figure.
+   :type return_df: bool, default False
+
+   :rtype: go.Figure or pl.DataFrame
+
+
+.. py:function:: component_drilldown(self, component_name: str, scope: str = 'Action', additional_filters: polars.Expr | list[polars.Expr] | None = None, sort_by: str = 'Filtered Decisions', return_df=False)
+
+   Bar chart drilling into a single component's filtered actions with
+   value context.
+
+   Shows filtered actions sorted by the chosen metric, with secondary
+   axis for average scoring values when available.
+
+   :param component_name: The pxComponentName to drill into.
+   :type component_name: str
+   :param scope: The granularity level to display (Issue, Group, or Action).
+   :type scope: str, default "Action"
+   :param additional_filters: Extra filters applied before aggregation.
+   :type additional_filters: pl.Expr or list of pl.Expr, optional
+   :param sort_by: Column to sort by. Also accepts "avg_Value", "avg_Priority".
+   :type sort_by: str, default "Filtered Decisions"
+   :param return_df: If True, return the DataFrame instead of a figure.
+   :type return_df: bool, default False
+
+   :rtype: go.Figure or pl.DataFrame
+
+
+.. py:function:: plot_priority_component_distribution(value_data: polars.LazyFrame, component: str, granularity: str, color_discrete_map: dict[str, str] | None = None)
+
+   Violin + ECDF + summary statistics for a single prioritization component.
+
+   :returns: violin_fig, ecdf_fig, stats_df
+   :rtype: tuple of (go.Figure, go.Figure, pl.DataFrame)
+
+
+.. py:function:: plot_component_overview(value_data: polars.LazyFrame, components: list[str], granularity: str) -> plotly.graph_objects.Figure
+
+   Small-multiples violin panel showing all components side by side.
+
+   Each component gets its own subplot with a fully independent x-axis
+   so their different scales are always visible.
+
+   :rtype: go.Figure
+
+

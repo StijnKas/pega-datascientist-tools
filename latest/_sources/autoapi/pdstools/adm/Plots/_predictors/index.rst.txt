@@ -1,0 +1,211 @@
+pdstools.adm.Plots._predictors
+==============================
+
+.. py:module:: pdstools.adm.Plots._predictors
+
+.. autoapi-nested-parse::
+
+   Predictor-level performance, contribution, heatmap, and count plots.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.adm.Plots._predictors._PredictorPlotsMixin
+
+
+Module Contents
+---------------
+
+.. py:class:: _PredictorPlotsMixin
+
+   Bases: :py:obj:`pdstools.adm.Plots._base._PlotsBase`
+
+
+   Common attribute surface used by every plot mixin.
+
+
+   .. py:method:: _boxplot_pre_aggregated(df: polars.LazyFrame, *, y_col: str, metric_col: str, metric_weight_col: str | None = None, legend_col: str | None = None, color_discrete_map: dict[str, str] | None = None, return_df: bool = False)
+
+
+   .. py:method:: predictor_performance(*, metric: str = 'Performance', top_n: int | None = None, active_only: bool = False, query: pdstools.utils.types.QUERY | None = None, return_df: bool = False)
+
+      Plots a box plot of the performance of the predictors
+
+      Use the query argument to drill down to a more specific subset
+      If top n is given, chooses the top predictors based on the
+      weighted average performance across models, ordered by their median performance.
+
+      :param metric: The metric to plot, by default "Performance"
+                     This is more for future-proofing, once FeatureImportance gets more used.
+      :type metric: str, optional
+      :param top_n: The top n predictors to plot, by default None
+      :type top_n: Optional[int], optional
+      :param active_only: Whether to only consider active predictor performance, by default False
+      :type active_only: bool, optional
+      :param query: The query to apply to the data, by default None
+      :type query: Optional[QUERY], optional
+      :param return_df: Whether to return a dataframe instead of a plot, by default False
+      :type return_df: bool, optional
+
+      :returns: Plotly box plot figure, LazyFrame if return_df=True, or None if no data
+      :rtype: Figure | pl.LazyFrame | None
+
+      .. seealso::
+
+         :py:obj:`pdstools.adm.ADMDatamart.apply_predictor_categorization`
+             how to override the out of the box predictor categorization
+
+      .. rubric:: Examples
+
+      >>> # Default: all predictors ranked by performance
+      >>> fig = dm.plot.predictor_performance()
+
+      >>> # Top-15 active predictors only
+      >>> fig = dm.plot.predictor_performance(top_n=15, active_only=True)
+
+      >>> # Filter to a specific channel and return the raw data
+      >>> df = dm.plot.predictor_performance(
+      ...     query={"Channel": "Web"},
+      ...     return_df=True,
+      ... )
+
+
+
+   .. py:method:: predictor_category_performance(*, metric: str = 'Performance', active_only: bool = False, query: pdstools.utils.types.QUERY | None = None, return_df: bool = False)
+
+      Plot the predictor category performance
+
+      :param metric: The metric to plot, by default "Performance"
+      :type metric: str, optional
+      :param active_only: Whether to only analyze active predictors, by default False
+      :type active_only: bool, optional
+      :param query: An optional query to apply, by default None
+      :type query: Optional[QUERY], optional
+      :param return_df: An optional flag to get the dataframe instead, by default False
+      :type return_df: bool, optional
+
+      :returns: A Plotly figure
+      :rtype: px.Figure
+
+      .. seealso::
+
+         :py:obj:`pdstools.adm.ADMDatamart.apply_predictor_categorization`
+             how to override the out of the box predictor categorization
+
+      .. rubric:: Examples
+
+      >>> # Default: performance box plot per predictor category
+      >>> fig = dm.plot.predictor_category_performance()
+
+      >>> # Active predictors only, filtered to a specific channel
+      >>> fig = dm.plot.predictor_category_performance(
+      ...     active_only=True,
+      ...     query={"Channel": "Web"},
+      ... )
+
+      >>> # Return underlying data for further analysis
+      >>> df = dm.plot.predictor_category_performance(return_df=True)
+
+
+
+   .. py:method:: predictor_contribution(*, by: str = 'Configuration', query: pdstools.utils.types.QUERY | None = None, return_df: bool = False)
+
+      Plots the predictor contribution for each configuration
+
+      :param by: By which column to plot the contribution, by default "Configuration"
+      :type by: str, optional
+      :param query: An optional query to apply to the data, by default None
+      :type query: Optional[QUERY], optional
+      :param return_df: An optional flag to get a Dataframe instead, by default False
+      :type return_df: bool, optional
+
+      :returns: A plotly figure
+      :rtype: px.Figure
+
+      .. seealso::
+
+         :py:obj:`pdstools.adm.ADMDatamart.apply_predictor_categorization`
+             how to override the out of the box predictor categorization
+
+      .. rubric:: Examples
+
+      >>> # Default: contribution per Configuration
+      >>> fig = dm.plot.predictor_contribution()
+
+      >>> # Contribution grouped by Channel
+      >>> fig = dm.plot.predictor_contribution(by="Channel")
+
+      >>> # Return the contribution data for further processing
+      >>> df = dm.plot.predictor_contribution(return_df=True)
+
+
+
+   .. py:method:: predictor_performance_heatmap(*, top_predictors: int = 20, top_groups: int | None = None, by: str = 'Name', active_only: bool = False, query: pdstools.utils.types.QUERY | None = None, return_df: bool = False)
+
+      Generate a heatmap showing predictor performance across different groups.
+
+      :param top_predictors: Number of top-performing predictors to include, by default 20
+      :type top_predictors: int, optional
+      :param top_groups: Number of top groups to include, by default None (all groups)
+      :type top_groups: int, optional
+      :param by: Column to group by for the heatmap, by default "Name"
+      :type by: str, optional
+      :param active_only: Whether to only include active predictors, by default False
+      :type active_only: bool, optional
+      :param query: Optional query to filter the data, by default None
+      :type query: Optional[QUERY], optional
+      :param return_df: Whether to return a dataframe instead of a plot, by default False
+      :type return_df: bool, optional
+
+      :returns: Plotly heatmap figure or DataFrame if return_df=True
+      :rtype: Union[Figure, pl.LazyFrame]
+
+      .. rubric:: Examples
+
+      >>> # Default: top-20 predictors vs proposition (Name)
+      >>> fig = dm.plot.predictor_performance_heatmap()
+
+      >>> # Top-10 predictors across top-5 configurations, active only
+      >>> fig = dm.plot.predictor_performance_heatmap(
+      ...     top_predictors=10,
+      ...     top_groups=5,
+      ...     by="Configuration",
+      ...     active_only=True,
+      ... )
+
+      >>> # Return the pivot data for further processing
+      >>> df = dm.plot.predictor_performance_heatmap(return_df=True)
+
+
+
+   .. py:method:: predictor_count(*, by: str | list[str] = ['EntryType', 'Type'], query: pdstools.utils.types.QUERY | None = None, return_df: bool = False)
+
+      Generate a box plot showing the distribution of predictor counts by type.
+
+      :param by: Column(s) to group predictors by, by default ["EntryType", "Type"]
+      :type by: Union[str, list[str]], optional
+      :param query: Optional query to filter the data, by default None
+      :type query: Optional[QUERY], optional
+      :param return_df: Whether to return a dataframe instead of a plot, by default False
+      :type return_df: bool, optional
+
+      :returns: Plotly box plot figure or DataFrame if return_df=True
+      :rtype: Union[Figure, pl.LazyFrame]
+
+      .. rubric:: Examples
+
+      >>> # Default: predictor count distribution by EntryType and Type
+      >>> fig = dm.plot.predictor_count()
+
+      >>> # Distribution by EntryType only
+      >>> fig = dm.plot.predictor_count(by="EntryType")
+
+      >>> # Return the raw counts
+      >>> df = dm.plot.predictor_count(return_df=True)
+
+
+

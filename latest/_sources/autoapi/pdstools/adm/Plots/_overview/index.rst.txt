@@ -1,0 +1,175 @@
+pdstools.adm.Plots._overview
+============================
+
+.. py:module:: pdstools.adm.Plots._overview
+
+.. autoapi-nested-parse::
+
+   Model-overview plots: bubble_chart, tree_map, action_overlap, partitioned_plot.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   pdstools.adm.Plots._overview._OverviewPlotsMixin
+
+
+Module Contents
+---------------
+
+.. py:class:: _OverviewPlotsMixin
+
+   Bases: :py:obj:`pdstools.adm.Plots._base._PlotsBase`
+
+
+   Common attribute surface used by every plot mixin.
+
+
+   .. py:method:: bubble_chart(*, last: bool = True, rounding: int = 5, query: pdstools.utils.types.QUERY | None = None, facet: str | polars.Expr | None = None, color: str | None = 'Performance', show_metric_limits: bool = False, return_df: bool = False)
+
+      The Bubble Chart, as seen in Prediction Studio
+
+      :param last: Whether to only include the latest snapshot, by default True
+      :type last: bool, optional
+      :param rounding: To how many digits to round the performance number
+      :type rounding: int, optional
+      :param query: The query to apply to the data, by default None
+      :type query: Optional[QUERY], optional
+      :param facet: Column name or Polars expression to facet the plot into subplots, by default None
+      :type facet: Optional[Union[str, pl.Expr]], optional
+      :param show_metric_limits: Whether to show dashed vertical lines at the ModelPerformance
+                                 metric limit thresholds (from MetricLimits.csv), by default False
+      :type show_metric_limits: bool, optional
+      :param return_df: Whether to return a dataframe instead of a plot, by default False
+      :type return_df: bool, optional
+
+      :returns: Plotly scatter figure or LazyFrame if return_df=True
+      :rtype: Figure | pl.LazyFrame
+
+      .. rubric:: Examples
+
+      >>> from pdstools import ADMDatamart
+      >>> dm = ADMDatamart.from_ds_export(base_path="/my_export_folder")
+
+      >>> # Basic bubble chart using the latest snapshot
+      >>> fig = dm.plot.bubble_chart()
+
+      >>> # Facet by Channel to see performance per channel
+      >>> fig = dm.plot.bubble_chart(facet="Channel")
+
+      >>> # Include all snapshots and show metric-limit guidelines
+      >>> fig = dm.plot.bubble_chart(last=False, show_metric_limits=True)
+
+      >>> # Return the underlying data instead of the figure
+      >>> df = dm.plot.bubble_chart(return_df=True)
+
+
+
+   .. py:method:: tree_map(metric: Literal['ResponseCount', 'Positives', 'Performance', 'SuccessRate', 'percentage_without_responses'] = 'Performance', *, by: str = 'Name', query: pdstools.utils.types.QUERY | None = None, return_df: bool = False)
+
+      Generate a tree map visualization showing hierarchical model metrics.
+
+      :param metric: The metric to visualize in the tree map, by default "Performance"
+      :type metric: Literal["ResponseCount", "Positives", "Performance", "SuccessRate", "percentage_without_responses"], optional
+      :param by: Column to group by for the tree map hierarchy, by default "Name"
+      :type by: str, optional
+      :param query: Optional query to filter the data, by default None
+      :type query: Optional[QUERY], optional
+      :param return_df: Whether to return a dataframe instead of a plot, by default False
+      :type return_df: bool, optional
+
+      :returns: Plotly treemap figure or DataFrame if return_df=True
+      :rtype: Union[Figure, pl.LazyFrame]
+
+      .. rubric:: Examples
+
+      >>> # Default: Performance tree map grouped by proposition name
+      >>> fig = dm.plot.tree_map()
+
+      >>> # ResponseCount tree map grouped by Channel
+      >>> fig = dm.plot.tree_map(metric="ResponseCount", by="Channel")
+
+      >>> # Return underlying summary data
+      >>> df = dm.plot.tree_map(return_df=True)
+
+
+
+   .. py:method:: action_overlap(group_col: str | list[str] | polars.Expr = 'Channel', overlap_col='Name', *, show_fraction=True, query: pdstools.utils.types.QUERY | None = None, return_df: bool = False)
+
+      Generate an overlap matrix heatmap showing shared actions across different groups.
+
+      :param group_col: Column(s) to group by for overlap analysis, by default "Channel"
+      :type group_col: Union[str, list[str], pl.Expr], optional
+      :param overlap_col: Column containing values to analyze for overlap, by default "Name"
+      :type overlap_col: str, optional
+      :param show_fraction: Whether to show overlap as fraction or absolute count, by default True
+      :type show_fraction: bool, optional
+      :param query: Optional query to filter the data, by default None
+      :type query: Optional[QUERY], optional
+      :param return_df: Whether to return a dataframe instead of a plot, by default False
+      :type return_df: bool, optional
+
+      :returns: Plotly heatmap showing action overlap or DataFrame if return_df=True
+      :rtype: Union[Figure, pl.LazyFrame]
+
+      .. rubric:: Examples
+
+      >>> # Default: action overlap across Channels
+      >>> fig = dm.plot.action_overlap()
+
+      >>> # Overlap shown as absolute counts rather than fractions
+      >>> fig = dm.plot.action_overlap(show_fraction=False)
+
+      >>> # Overlap of configurations across Channel/Direction combinations
+      >>> fig = dm.plot.action_overlap(
+      ...     group_col=["Channel", "Direction"],
+      ...     overlap_col="Configuration",
+      ... )
+
+      >>> # Return the overlap matrix as a DataFrame
+      >>> df = dm.plot.action_overlap(return_df=True)
+
+
+
+   .. py:method:: partitioned_plot(func: collections.abc.Callable, facets: list[dict[str, str | None]], show_plots: bool = True, *args, **kwargs)
+
+      Execute a plotting function across multiple faceted subsets of data.
+
+      This method applies a given plotting function to multiple filtered subsets of data,
+      where each subset is defined by the facet conditions. It's useful for generating
+      multiple plots with different filter conditions applied.
+
+      :param func: The plotting function to execute for each facet
+      :type func: Callable
+      :param facets: list of dictionaries defining filter conditions for each facet
+      :type facets: list[dict[str, Optional[str]]]
+      :param show_plots: Whether to display the plots as they are generated, by default True
+      :type show_plots: bool, optional
+      :param \*args: Additional positional arguments to pass to the plotting function
+      :type \*args: tuple
+      :param \*\*kwargs: Additional keyword arguments to pass to the plotting function
+      :type \*\*kwargs: dict
+
+      :returns: list of Plotly figures, one for each facet condition
+      :rtype: list[Figure]
+
+      .. rubric:: Examples
+
+      >>> # Bubble chart separately for Web and Email channels
+      >>> figs = dm.plot.partitioned_plot(
+      ...     dm.plot.bubble_chart,
+      ...     facets=[{"Channel": "Web"}, {"Channel": "Email"}],
+      ... )
+
+      >>> # Same but suppress auto-display
+      >>> figs = dm.plot.partitioned_plot(
+      ...     dm.plot.bubble_chart,
+      ...     facets=[{"Channel": "Web"}, {"Channel": "Email"}],
+      ...     show_plots=False,
+      ... )
+
+
+

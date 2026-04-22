@@ -1,0 +1,74 @@
+pdstools.cli
+============
+
+.. py:module:: pdstools.cli
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   pdstools.cli._SUBCOMMANDS
+   pdstools.cli.APPS
+   pdstools.cli.ALIASES
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   pdstools.cli.create_parser
+   pdstools.cli.check_for_typos
+   pdstools.cli._aliases_for
+   pdstools.cli.list_apps
+   pdstools.cli.doctor
+   pdstools.cli.main
+   pdstools.cli.run
+
+
+Module Contents
+---------------
+
+.. py:data:: _SUBCOMMANDS
+
+.. py:data:: APPS
+
+.. py:data:: ALIASES
+
+.. py:function:: create_parser()
+
+.. py:function:: check_for_typos(unknown_args, known_args)
+
+   Check if unknown arguments might be typos of known pdstools arguments.
+
+   Args:
+       unknown_args: List of unknown arguments from parse_known_args
+       known_args: List of known pdstools argument names (with --)
+
+   Returns:
+       List of (typo, suggestion, similarity) tuples for likely typos
+
+
+.. py:function:: _aliases_for(app_key: str) -> list[str]
+
+.. py:function:: list_apps() -> None
+
+   Print one line per app: ``<key>\t<display_name>\t<aliases>``.
+
+
+.. py:function:: doctor() -> None
+
+   Print environment health information for support diagnostics.
+
+   Thin wrapper over :func:`pdstools.show_versions` with all
+   diagnostic flags enabled. Exposed as the ``pdstools doctor`` CLI
+   subcommand so users can share their environment without writing
+   Python.
+
+
+.. py:function:: main()
+
+.. py:function:: run(args, unknown)
+
