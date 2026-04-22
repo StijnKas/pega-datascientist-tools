@@ -316,7 +316,13 @@ zoom, and hover for details.
                 st.session_state["sample_metadata"] = sample_metadata
 
                 del raw_data
-                _show_data_summary(da)
+            # Trigger a rerun so the navigation registry (built at the
+            # top of the script before decision_data existed) is rebuilt
+            # with the now-unlocked data-dependent pages. Without this
+            # the sidebar stays stuck on Home + About until the user
+            # navigates somewhere — which made it look like the pages
+            # only "appear" after clicking About.
+            st.rerun()
         except BaseException as exc:
             if _is_capacity_error(exc):
                 st.error(f"🚫 {type(exc).__name__}: {exc}")
