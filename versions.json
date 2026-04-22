@@ -3,5 +3,10 @@
     "version": "latest",
     "url": "https://StijnKas.github.io/pega-datascientist-tools/latest/",
     "preferred": false
+  },
+  {
+    "version": "0.0.1-test",
+    "url": "https://StijnKas.github.io/pega-datascientist-tools/0.0.1-test/",
+    "preferred": false
   }
 ]
